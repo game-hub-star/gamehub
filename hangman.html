@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>3D Hangman Experience</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #08090d;
+            color: #ffffff;
+            position: fixed; /* Prevents scroll bounces on mobile iOS */
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* Glassmorphism Panel Tokens */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .glow-text {
+            text-shadow: 0 0 15px rgba(6, 182, 212, 0.6);
+        }
+
+        .glow-box {
+            box-shadow: 0 0 24px rgba(6, 182, 212, 0.2);
+        }
+
+        /* Keyboard Buttons */
+        .key-btn {
+            transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+            touch-action: manipulation;
+        }
+
+        .key-btn:active {
+            transform: scale(0.92);
+        }
+
+        .key-correct {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+            border-color: #34d399 !important;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.5) !important;
+            color: #ffffff !important;
+            opacity: 0.85;
+            cursor: not-allowed !important;
+        }
+
+        .key-wrong {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+            border-color: #f87171 !important;
+            opacity: 0.2;
+            cursor: not-allowed !important;
+        }
+
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            height: 6px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #06b6d4;
+            cursor: pointer;
+            box-shadow: 0 0 10px #06b6d4;
+        }
+
+        /* Responsive Layout Tweaks for Landscape Mobile */
+        @media (max-height: 500px) and (orientation: landscape) {
+            #ui-container {
+                padding: 0.5rem !important;
+            }
+            .header-panel {
+                padding: 0.25rem 0.75rem !important;
+            }
+            #word-display {
+                padding: 0.35rem 0.75rem !important;
+                margin-top: 0.25rem;
+                margin-bottom: 0.25rem;
+            }
+            .word-slot {
+                width: 1.75rem !important;
+                height: 2.25rem !important;
+                font-size: 1rem !important;
+            }
+            .keyboard-wrapper {
+                padding: 0.35rem !important;
+            }
+            .key-btn {
+                height: 2rem !important;
+                font-size: 0.75rem !important;
+            }
+        }
+    </style>
+
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body class="relative min-h-screen w-screen overflow-hidden select-none">
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay -->
+    <div id="ui-container" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-3 sm:p-5 md:p-6 pb-safe">
+        
+        <!-- Header Controls -->
+        <div class="flex justify-between items-center w-full max-w-5xl mx-auto gap-2 sm:gap-4 pointer-events-auto">
+            <div class="header-panel glass-panel px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-2xl flex items-center gap-2.5 sm:gap-3 border-cyan-500/30">
+                <i class="fa-solid fa-cube text-cyan-400 text-xl sm:text-2xl"></i>
+                <div>
+                    <h1 class="text-sm sm:text-lg md:text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 glow-text leading-tight">
+                        3D HANGMAN
+                    </h1>
+                    <p id="category-display" class="text-[10px] sm:text-xs text-cyan-200/80 font-medium tracking-wide">
+                        Category: Loading...
+                    </p>
+                </div>
+            </div>
+
+            <!-- Stats & Action Buttons -->
+            <div class="flex items-center gap-1.5 sm:gap-2.5">
+                <div class="glass-panel px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl flex items-center gap-1.5 sm:gap-2">
+                    <i class="fa-solid fa-heart-pulse text-red-400 text-xs sm:text-sm"></i>
+                    <span id="lives-counter" class="text-[11px] sm:text-sm font-bold text-slate-200">6 / 6 Lives</span>
+                </div>
+                
+                <button id="reset-btn" class="glass-panel p-2 sm:p-2.5 rounded-xl hover:bg-white/10 text-cyan-400 hover:text-cyan-300 transition-colors" title="New Word">
+                    <i class="fa-solid fa-rotate-right text-xs sm:text-base"></i>
+                </button>
+
+                <button id="settings-btn" class="glass-panel p-2 sm:p-2.5 rounded-xl hover:bg-white/10 text-cyan-400 hover:text-cyan-300 transition-colors" title="Settings">
+                    <i class="fa-solid fa-gear text-xs sm:text-base"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Middle Word Display Slot -->
+        <div class="w-full flex justify-center items-center my-auto py-1 sm:py-2">
+            <div id="word-display" class="glass-panel px-4 py-3 sm:px-8 sm:py-5 rounded-2xl sm:rounded-3xl flex gap-1.5 sm:gap-3 flex-wrap justify-center items-center shadow-2xl border-cyan-500/20 max-w-4xl">
+                <!-- Word slots inserted dynamically -->
+            </div>
+        </div>
+
+        <!-- Bottom Touch Keyboard -->
+        <div class="w-full max-w-3xl mx-auto pointer-events-auto">
+            <div class="keyboard-wrapper glass-panel p-2 sm:p-4 rounded-2xl sm:rounded-3xl glow-box border-cyan-500/20">
+                <div id="keyboard" class="grid grid-cols-7 sm:grid-cols-9 md:grid-cols-9 gap-1 sm:gap-2 justify-center">
+                    <!-- Keys built dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="glass-panel max-w-md w-full p-5 sm:p-7 rounded-3xl text-left transform scale-95 transition-all duration-300 border-cyan-500/40 glow-box relative">
+            
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-xl sm:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
+                    <i class="fa-solid fa-sliders mr-2"></i>SETTINGS
+                </h2>
+                <button id="close-settings-btn" class="text-slate-400 hover:text-white text-lg sm:text-xl p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 sm:space-y-5">
+                <!-- Music Toggle -->
+                <div class="flex justify-between items-center glass-panel p-3 sm:p-3.5 rounded-2xl bg-slate-900/40">
+                    <div>
+                        <div class="font-bold text-slate-200 text-xs sm:text-sm">Background Music</div>
+                        <div class="text-[10px] sm:text-xs text-slate-400">Synthesized ambient soundtrack</div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="music-toggle" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+                    </label>
+                </div>
+
+                <!-- Music Volume Slider -->
+                <div class="glass-panel p-3 sm:p-3.5 rounded-2xl bg-slate-900/40 space-y-2">
+                    <div class="flex justify-between text-xs font-bold text-slate-300">
+                        <span><i class="fa-solid fa-music mr-2 text-cyan-400"></i>Music Volume</span>
+                        <span id="music-vol-txt">50%</span>
+                    </div>
+                    <input type="range" id="music-vol-slider" min="0" max="100" value="50" class="w-full cursor-pointer">
+                </div>
+
+                <!-- SFX Volume Slider -->
+                <div class="glass-panel p-3 sm:p-3.5 rounded-2xl bg-slate-900/40 space-y-2">
+                    <div class="flex justify-between text-xs font-bold text-slate-300">
+                        <span><i class="fa-solid fa-volume-high mr-2 text-cyan-400"></i>SFX Volume</span>
+                        <span id="sfx-vol-txt">70%</span>
+                    </div>
+                    <input type="range" id="sfx-vol-slider" min="0" max="100" value="70" class="w-full cursor-pointer">
+                </div>
+
+                <!-- Exit Button -->
+                <button id="exit-btn" class="w-full py-3 sm:py-3.5 rounded-2xl font-extrabold tracking-wider uppercase text-xs sm:text-sm text-white bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-500/20 active:scale-95">
+                    <i class="fa-solid fa-door-open"></i> Exit to Game Hub
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory / Loss Modal -->
+    <div id="game-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-500">
+        <div class="glass-panel max-w-sm sm:max-w-md w-full p-6 sm:p-8 rounded-3xl text-center transform scale-95 transition-all duration-500 border-cyan-500/40 glow-box relative overflow-hidden">
+            <div id="modal-accent" class="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div id="modal-icon-container" class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-lg border">
+                <i id="modal-icon" class="fa-solid fa-trophy"></i>
+            </div>
+
+            <h2 id="modal-title" class="text-2xl sm:text-3xl font-extrabold tracking-wide mb-1 sm:mb-2 text-white">
+                VICTORY!
+            </h2>
+            <p id="modal-subtitle" class="text-slate-300 text-xs sm:text-sm mb-4 sm:mb-6">
+                You decoded the mystery word seamlessly.
+            </p>
+
+            <div class="glass-panel p-3 sm:p-4 rounded-2xl mb-5 sm:mb-6 bg-slate-900/50">
+                <span class="text-[10px] sm:text-xs uppercase tracking-widest text-slate-400 block mb-1">Target Word</span>
+                <span id="revealed-word" class="text-xl sm:text-2xl font-black text-cyan-400 tracking-widest uppercase">HTML</span>
+            </div>
+
+            <button id="modal-play-again" class="w-full py-3.5 sm:py-4 rounded-xl font-extrabold tracking-wider uppercase text-xs sm:text-sm text-slate-950 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 transition-all transform active:scale-95 shadow-lg shadow-cyan-500/30">
+                Play Next Word
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- EXPANDED WORD DATABASE (100+ Words) ---
+        const WORDS_DATABASE = [
+            // Programming
+            { word: "JAVASCRIPT", category: "Programming" },
+            { word: "DEVELOPER", category: "Programming" },
+            { word: "THREEJS", category: "Programming" },
+            { word: "ALGORITHM", category: "Programming" },
+            { word: "CYBERSECURITY", category: "Programming" },
+            { word: "FRAMEWORK", category: "Programming" },
+            { word: "RECURSION", category: "Programming" },
+            { word: "COMPILER", category: "Programming" },
+            { word: "DATABASE", category: "Programming" },
+            { word: "ENCRYPTION", category: "Programming" },
+            
+            // Animals
+            { word: "CHAMELEON", category: "Animals" },
+            { word: "PLATYPUS", category: "Animals" },
+            { word: "ARMADILLO", category: "Animals" },
+            { word: "PORCUPINE", category: "Animals" },
+            { word: "FLAMINGO", category: "Animals" },
+            { word: "TARANTULA", category: "Animals" },
+            { word: "SALAMANDER", category: "Animals" },
+            { word: "RHINOCEROS", category: "Animals" },
+            { word: "PEREGRINE", category: "Animals" },
+            { word: "CENTIPEDE", category: "Animals" },
+
+            // Space & Science
+            { word: "SUPERNOVA", category: "Space & Science" },
+            { word: "ASTEROID", category: "Space & Science" },
+            { word: "BLACKHOLE", category: "Space & Science" },
+            { word: "EXOPLANET", category: "Space & Science" },
+            { word: "QUANTUM", category: "Space & Science" },
+            { word: "GRAVITY", category: "Space & Science" },
+            { word: "TELESCOPE", category: "Space & Science" },
+            { word: "NEBULA", category: "Space & Science" },
+            { word: "ATMOSPHERE", category: "Space & Science" },
+            { word: "SATELLITE", category: "Space & Science" },
+
+            // World Cities
+            { word: "AMSTERDAM", category: "World Cities" },
+            { word: "SINGAPORE", category: "World Cities" },
+            { word: "REYKJAVIK", category: "World Cities" },
+            { word: "STOCKHOLM", category: "World Cities" },
+            { word: "BARCELONA", category: "World Cities" },
+            { word: "VANCOUVER", category: "World Cities" },
+            { word: "MARRAKECH", category: "World Cities" },
+            { word: "MELBOURNE", category: "World Cities" },
+            { word: "COPENHAGEN", category: "World Cities" },
+            { word: "EDINBURGH", category: "World Cities" },
+
+            // Food & Culinary
+            { word: "GUACAMOLE", category: "Food & Cooking" },
+            { word: "CROISSANT", category: "Food & Cooking" },
+            { word: "SPAGHETTI", category: "Food & Cooking" },
+            { word: "PINEAPPLE", category: "Food & Cooking" },
+            { word: "CHOCOLATE", category: "Food & Cooking" },
+            { word: "MAYONNAISE", category: "Food & Cooking" },
+            { word: "CAPPUCCINO", category: "Food & Cooking" },
+            { word: "JALAPENO", category: "Food & Cooking" },
+            { word: "PISTACHIO", category: "Food & Cooking" },
+            { word: "MOZZARELLA", category: "Food & Cooking" },
+
+            // Pop Culture
+            { word: "HOLLYWOOD", category: "Pop Culture" },
+            { word: "SUPERHERO", category: "Pop Culture" },
+            { word: "BLOCKBUSTER", category: "Pop Culture" },
+            { word: "SOUNDTRACK", category: "Pop Culture" },
+            { word: "ANIMATION", category: "Pop Culture" },
+            { word: "DIRECTOR", category: "Pop Culture" },
+            { word: "PUPPETEER", category: "Pop Culture" },
+            { word: "PANTOMIME", category: "Pop Culture" },
+            { word: "STUNTMAN", category: "Pop Culture" },
+            { word: "SCREENPLAY", category: "Pop Culture" },
+
+            // Sports
+            { word: "BASKETBALL", category: "Sports" },
+            { word: "SKATEBOARD", category: "Sports" },
+            { word: "BADMINTON", category: "Sports" },
+            { word: "SNOWBOARD", category: "Sports" },
+            { word: "GYMNASTICS", category: "Sports" },
+            { word: "TAEKWONDO", category: "Sports" },
+            { word: "EQUESTRIAN", category: "Sports" },
+            { word: "DECATHLON", category: "Sports" },
+            { word: "VOLLEYBALL", category: "Sports" },
+            { word: "TRAMPOLINE", category: "Sports" },
+
+            // Geography
+            { word: "ARCHIPELAGO", category: "Geography" },
+            { word: "RAINFOREST", category: "Geography" },
+            { word: "PENINSULA", category: "Geography" },
+            { word: "CONTINENT", category: "Geography" },
+            { word: "WATERFALL", category: "Geography" },
+            { word: "GLACIER", category: "Geography" },
+            { word: "AVALANCHE", category: "Geography" },
+            { word: "CANYON", category: "Geography" },
+            { word: "VOLCANO", category: "Geography" },
+            { word: "LAGOON", category: "Geography" },
+
+            // Music
+            { word: "SAXOPHONE", category: "Music" },
+            { word: "XYLOPHONE", category: "Music" },
+            { word: "ACCORDION", category: "Music" },
+            { word: "HARMONICA", category: "Music" },
+            { word: "ORCHESTRA", category: "Music" },
+            { word: "SYMPHONY", category: "Music" },
+            { word: "METRONOME", category: "Music" },
+            { word: "CLARINET", category: "Music" },
+            { word: "PERCUSSION", category: "Music" },
+            { word: "TAMBOURINE", category: "Music" },
+
+            // Tricky Words
+            { word: "MYSTERY", category: "Tricky Words" },
+            { word: "PUZZLE", category: "Tricky Words" },
+            { word: "WHIRLWIND", category: "Tricky Words" },
+            { word: "LABYRINTH", category: "Tricky Words" },
+            { word: "KALEIDOSCOPE", category: "Tricky Words" },
+            { word: "PARADOX", category: "Tricky Words" },
+            { word: "SQUIRREL", category: "Tricky Words" },
+            { word: "BLIZZARD", category: "Tricky Words" },
+            { word: "JEWELRY", category: "Tricky Words" },
+            { word: "SYMMETRY", category: "Tricky Words" }
+        ];
+
+        // --- WEB AUDIO API PROCEDURAL AUDIO ENGINE ---
+        class AudioEngine {
+            constructor() {
+                this.ctx = null;
+                this.musicGain = null;
+                this.sfxGain = null;
+                this.isMusicOn = true;
+                this.musicVol = 0.5;
+                this.sfxVol = 0.7;
+                this.isPlayingMusic = false;
+                this.bgmTimer = null;
+            }
+
+            init() {
+                if (this.ctx) return;
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioCtx();
+
+                this.musicGain = this.ctx.createGain();
+                this.sfxGain = this.ctx.createGain();
+
+                this.updateVolumes();
+
+                this.musicGain.connect(this.ctx.destination);
+                this.sfxGain.connect(this.ctx.destination);
+            }
+
+            updateVolumes() {
+                if (!this.ctx) return;
+                this.musicGain.gain.setValueAtTime(this.isMusicOn ? this.musicVol * 0.25 : 0, this.ctx.currentTime);
+                this.sfxGain.gain.setValueAtTime(this.sfxVol, this.ctx.currentTime);
+            }
+
+            startBGM() {
+                this.init();
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+                if (this.isPlayingMusic) return;
+                this.isPlayingMusic = true;
+
+                const notes = [220, 261.63, 329.63, 392.00, 440, 523.25];
+                let step = 0;
+
+                const playNote = () => {
+                    if (!this.isPlayingMusic) return;
+                    
+                    try {
+                        const osc = this.ctx.createOscillator();
+                        const noteGain = this.ctx.createGain();
+
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(notes[step % notes.length], this.ctx.currentTime);
+                        
+                        noteGain.gain.setValueAtTime(0, this.ctx.currentTime);
+                        noteGain.gain.linearRampToValueAtTime(0.08, this.ctx.currentTime + 0.3);
+                        noteGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.8);
+
+                        osc.connect(noteGain);
+                        noteGain.connect(this.musicGain);
+
+                        osc.start();
+                        osc.stop(this.ctx.currentTime + 1.8);
+
+                        step++;
+                        this.bgmTimer = setTimeout(playNote, 600);
+                    } catch (e) {
+                        console.warn("Audio Context handling", e);
+                    }
+                };
+
+                playNote();
+            }
+
+            stopBGM() {
+                this.isPlayingMusic = false;
+                if (this.bgmTimer) clearTimeout(this.bgmTimer);
+            }
+
+            playClick() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(450, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.05);
+
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+
+                osc.connect(gain);
+                gain.connect(this.sfxGain);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.05);
+            }
+
+            playCorrect() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.35, now + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+                osc.connect(gain);
+                gain.connect(this.sfxGain);
+                osc.start();
+                osc.stop(now + 0.3);
+            }
+
+            playWrong() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.exponentialRampToValueAtTime(70, now + 0.25);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+
+                osc.connect(gain);
+                gain.connect(this.sfxGain);
+                osc.start();
+                osc.stop(now + 0.25);
+            }
+
+            playWin() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    const startTime = this.ctx.currentTime + idx * 0.12;
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+
+                    gain.gain.setValueAtTime(0, startTime);
+                    gain.gain.linearRampToValueAtTime(0.35, startTime + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+
+                    osc.connect(gain);
+                    gain.connect(this.sfxGain);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.4);
+                });
+            }
+
+            playLoss() {
+                this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+
+                const notes = [280, 240, 200, 160];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    const startTime = this.ctx.currentTime + idx * 0.15;
+
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, startTime);
+
+                    gain.gain.setValueAtTime(0.25, startTime);
+                    gain.gain.linearRampToValueAtTime(0.01, startTime + 0.2);
+
+                    osc.connect(gain);
+                    gain.connect(this.sfxGain);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.2);
+                });
+            }
+        }
+
+        const audio = new AudioEngine();
+
+        // --- GAME STATE VARIABLES ---
+        let availablePool = [...WORDS_DATABASE];
+        let currentWordObj = null;
+        let guessedLetters = new Set();
+        let wrongGuesses = 0;
+        const MAX_WRONG = 6;
+        let gameActive = false;
+
+        // --- THREE.JS ENGINE & RESPONSIVE CAMERA SYSTEM ---
+        let scene, camera, renderer;
+        let gallowsGroup, characterGroup;
+        let bodyParts = [];
+
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x08090d);
+            scene.fog = new THREE.FogExp2(0x08090d, 0.035);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            updateCameraPosition();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            container.appendChild(renderer.domElement);
+
+            // Lighting Setup
+            const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.55);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.25);
+            dirLight.position.set(6, 12, 8);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.bias = -0.0005;
+            scene.add(dirLight);
+
+            const rimLight = new THREE.PointLight(0x06b6d4, 2.8, 14);
+            rimLight.position.set(-4, 4, -2);
+            scene.add(rimLight);
+
+            // Circular Base Floor
+            const groundGeo = new THREE.CircleGeometry(14, 64);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8, metalness: 0.2 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            build3DGallows();
+            build3DCharacter();
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        // Calculates Camera Position and FOV dynamically to prevent clipping on Mobile Portrait or Ultra-Wide Screens
+        function updateCameraPosition() {
+            const aspect = window.innerWidth / window.innerHeight;
+            
+            if (aspect < 0.8) {
+                // Portrait Mobile
+                camera.fov = 55;
+                camera.position.set(0, 4.8, 14.5);
+                camera.lookAt(0, 2.6, 0);
+            } else if (aspect < 1.2) {
+                // Square/Tablet
+                camera.fov = 48;
+                camera.position.set(0, 4.5, 12.5);
+                camera.lookAt(0, 2.5, 0);
+            } else {
+                // Desktop Landscape
+                camera.fov = 42;
+                camera.position.set(0, 4.2, 11);
+                camera.lookAt(0, 2.3, 0);
+            }
+            camera.updateProjectionMatrix();
+        }
+
+        function build3DGallows() {
+            gallowsGroup = new THREE.Group();
+
+            const woodMat = new THREE.MeshStandardMaterial({ color: 0x3f2e21, roughness: 0.85 });
+            const ropeMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.9 });
+
+            const base = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.3, 2.5), woodMat);
+            base.position.set(-1, 0.15, 0);
+            base.castShadow = true;
+            base.receiveShadow = true;
+            gallowsGroup.add(base);
+
+            const pole = new THREE.Mesh(new THREE.BoxGeometry(0.35, 6.2, 0.35), woodMat);
+            pole.position.set(-2.5, 3.25, 0);
+            pole.castShadow = true;
+            gallowsGroup.add(pole);
+
+            const topBeam = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.35, 0.35), woodMat);
+            topBeam.position.set(-0.8, 6.2, 0);
+            topBeam.castShadow = true;
+            gallowsGroup.add(topBeam);
+
+            const brace = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.8, 0.25), woodMat);
+            brace.position.set(-2.0, 5.4, 0);
+            brace.rotation.z = -Math.PI / 4;
+            brace.castShadow = true;
+            gallowsGroup.add(brace);
+
+            const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.1, 12), ropeMat);
+            rope.position.set(0.6, 5.4, 0);
+            rope.castShadow = true;
+            gallowsGroup.add(rope);
+
+            scene.add(gallowsGroup);
+        }
+
+        function build3DCharacter() {
+            characterGroup = new THREE.Group();
+            characterGroup.position.set(0.6, 0, 0);
+
+            const charMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x06b6d4, 
+                roughness: 0.2, 
+                metalness: 0.5,
+                emissive: 0x0284c7,
+                emissiveIntensity: 0.2
+            });
+
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.38, 32, 32), charMaterial);
+            head.position.set(0, 4.4, 0);
+            head.castShadow = true;
+
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 1.5, 16), charMaterial);
+            torso.position.set(0, 3.2, 0);
+            torso.castShadow = true;
+
+            const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 1.1, 12), charMaterial);
+            leftArm.position.set(-0.42, 3.4, 0);
+            leftArm.rotation.z = Math.PI / 3.5;
+            leftArm.castShadow = true;
+
+            const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 1.1, 12), charMaterial);
+            rightArm.position.set(0.42, 3.4, 0);
+            rightArm.rotation.z = -Math.PI / 3.5;
+            rightArm.castShadow = true;
+
+            const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 1.3, 12), charMaterial);
+            leftLeg.position.set(-0.3, 1.9, 0);
+            leftLeg.rotation.z = Math.PI / 8;
+            leftLeg.castShadow = true;
+
+            const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 1.3, 12), charMaterial);
+            rightLeg.position.set(0.3, 1.9, 0);
+            rightLeg.rotation.z = -Math.PI / 8;
+            rightLeg.castShadow = true;
+
+            bodyParts = [head, torso, leftArm, rightArm, leftLeg, rightLeg];
+
+            bodyParts.forEach(part => {
+                part.visible = false;
+                characterGroup.add(part);
+            });
+
+            scene.add(characterGroup);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = Date.now() * 0.001;
+
+            if (gallowsGroup) {
+                gallowsGroup.rotation.y = Math.sin(time * 0.5) * 0.08;
+            }
+            if (characterGroup) {
+                characterGroup.rotation.z = Math.sin(time * 1.5) * 0.03;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            updateCameraPosition();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function initGame() {
+            if (availablePool.length === 0) {
+                availablePool = [...WORDS_DATABASE];
+            }
+
+            const randomIndex = Math.floor(Math.random() * availablePool.length);
+            currentWordObj = availablePool.splice(randomIndex, 1)[0];
+
+            guessedLetters.clear();
+            wrongGuesses = 0;
+            gameActive = true;
+
+            // Hide Active Modals
+            document.getElementById('game-modal').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('settings-modal').classList.add('opacity-0', 'pointer-events-none');
+
+            bodyParts.forEach(part => part.visible = false);
+
+            document.getElementById('category-display').innerText = `Category: ${currentWordObj.category}`;
+            updateLivesUI();
+            renderWordDisplay();
+            renderKeyboardUI();
+        }
+
+        function renderWordDisplay() {
+            const container = document.getElementById('word-display');
+            container.innerHTML = '';
+
+            const word = currentWordObj.word;
+            let isComplete = true;
+
+            for (let char of word) {
+                const slot = document.createElement('div');
+                slot.className = "word-slot w-7 h-10 sm:w-11 sm:h-14 md:w-12 md:h-16 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-base sm:text-2xl md:text-3xl border border-cyan-500/30 bg-slate-900/60 shadow-inner transition-all";
+
+                if (guessedLetters.has(char)) {
+                    slot.innerText = char;
+                    slot.classList.add('text-cyan-400', 'border-cyan-400/80', 'bg-cyan-950/40', 'glow-text');
+                } else {
+                    slot.innerText = '';
+                    slot.classList.add('text-slate-600');
+                    isComplete = false;
+                }
+
+                container.appendChild(slot);
+            }
+
+            if (isComplete && gameActive) {
+                endGame(true);
+            }
+        }
+
+        function renderKeyboardUI() {
+            const keyboardContainer = document.getElementById('keyboard');
+            keyboardContainer.innerHTML = '';
+
+            for (let i = 65; i <= 90; i++) {
+                const letter = String.fromCharCode(i);
+                const btn = document.createElement('button');
+                btn.id = `key-${letter}`;
+                btn.innerText = letter;
+                btn.className = "key-btn h-9 sm:h-11 md:h-12 rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm md:text-base glass-panel text-slate-200 border-slate-700 hover:border-cyan-400/60 hover:text-cyan-300 hover:bg-cyan-950/30 flex items-center justify-center shadow-md";
+
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    audio.startBGM();
+                    makeGuess(letter);
+                });
+                keyboardContainer.appendChild(btn);
+            }
+        }
+
+        function makeGuess(letter) {
+            if (!gameActive || guessedLetters.has(letter)) return;
+
+            guessedLetters.add(letter);
+            const keyBtn = document.getElementById(`key-${letter}`);
+
+            if (currentWordObj.word.includes(letter)) {
+                audio.playCorrect();
+                if (keyBtn) keyBtn.classList.add('key-correct');
+                renderWordDisplay();
+            } else {
+                audio.playWrong();
+                if (keyBtn) keyBtn.classList.add('key-wrong');
+                
+                if (wrongGuesses < MAX_WRONG) {
+                    bodyParts[wrongGuesses].visible = true;
+                    wrongGuesses++;
+                    updateLivesUI();
+                }
+
+                if (wrongGuesses >= MAX_WRONG) {
+                    endGame(false);
+                }
+            }
+        }
+
+        function updateLivesUI() {
+            const livesText = document.getElementById('lives-counter');
+            const remaining = MAX_WRONG - wrongGuesses;
+            livesText.innerText = `${remaining} / ${MAX_WRONG} Lives`;
+            
+            if (remaining <= 2) {
+                livesText.className = "text-[11px] sm:text-sm font-bold text-red-400 animate-pulse";
+            } else {
+                livesText.className = "text-[11px] sm:text-sm font-bold text-slate-200";
+            }
+        }
+
+        function endGame(isWin) {
+            gameActive = false;
+
+            const modal = document.getElementById('game-modal');
+            const iconContainer = document.getElementById('modal-icon-container');
+            const icon = document.getElementById('modal-icon');
+            const title = document.getElementById('modal-title');
+            const subtitle = document.getElementById('modal-subtitle');
+            const revealedWord = document.getElementById('revealed-word');
+
+            revealedWord.innerText = currentWordObj.word;
+
+            if (isWin) {
+                audio.playWin();
+                iconContainer.className = "w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-lg bg-emerald-500/20 text-emerald-400 border-emerald-500/40";
+                icon.className = "fa-solid fa-trophy";
+                title.innerText = "VICTORY!";
+                title.className = "text-2xl sm:text-3xl font-extrabold tracking-wide mb-1 sm:mb-2 text-emerald-400 glow-text";
+                subtitle.innerText = "Fantastic job! You saved the character and solved the mystery word.";
+            } else {
+                audio.playLoss();
+                iconContainer.className = "w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-lg bg-rose-500/20 text-rose-400 border-rose-500/40";
+                icon.className = "fa-solid fa-skull";
+                title.innerText = "GAME OVER";
+                title.className = "text-2xl sm:text-3xl font-extrabold tracking-wide mb-1 sm:mb-2 text-rose-500";
+                subtitle.innerText = "Out of lives! The stick figure has met its tragic end.";
+            }
+
+            setTimeout(() => {
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+            }, 400);
+        }
+
+        function setupEventListeners() {
+            // Keyboard Keypress
+            window.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+                audio.startBGM();
+                const key = e.key.toUpperCase();
+                if (key >= 'A' && key <= 'Z' && key.length === 1) {
+                    makeGuess(key);
+                }
+            });
+
+            // Quick Reset Button
+            document.getElementById('reset-btn').addEventListener('click', () => {
+                audio.playClick();
+                initGame();
+            });
+
+            // Settings Modal Open/Close
+            const settingsModal = document.getElementById('settings-modal');
+            document.getElementById('settings-btn').addEventListener('click', () => {
+                audio.playClick();
+                settingsModal.classList.remove('opacity-0', 'pointer-events-none');
+            });
+
+            document.getElementById('close-settings-btn').addEventListener('click', () => {
+                audio.playClick();
+                settingsModal.classList.add('opacity-0', 'pointer-events-none');
+            });
+
+            // Play Again Button
+            document.getElementById('modal-play-again').addEventListener('click', () => {
+                audio.playClick();
+                initGame();
+            });
+
+            // Audio Controls
+            const musicToggle = document.getElementById('music-toggle');
+            const musicSlider = document.getElementById('music-vol-slider');
+            const sfxSlider = document.getElementById('sfx-vol-slider');
+
+            musicToggle.addEventListener('change', (e) => {
+                audio.isMusicOn = e.target.checked;
+                audio.updateVolumes();
+                if (audio.isMusicOn) audio.startBGM();
+            });
+
+            musicSlider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                document.getElementById('music-vol-txt').innerText = `${val}%`;
+                audio.musicVol = val / 100;
+                audio.updateVolumes();
+            });
+
+            sfxSlider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                document.getElementById('sfx-vol-txt').innerText = `${val}%`;
+                audio.sfxVol = val / 100;
+                audio.updateVolumes();
+            });
+
+            // Exit Button Redirect
+            document.getElementById('exit-btn').addEventListener('click', () => {
+                audio.playClick();
+                window.location.href = 'game_hub.html';
+            });
+
+            // Initial audio unlock on touch
+            window.addEventListener('pointerdown', () => {
+                audio.startBGM();
+            }, { once: true });
+        }
+
+        window.onload = () => {
+            initThreeJS();
+            setupEventListeners();
+            initGame();
+        };
+    </script>
+</body>
+</html>
