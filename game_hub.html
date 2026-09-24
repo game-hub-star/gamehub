@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Game Vault</title>
+    <style>
+        /* =========================================
+           GLOBAL RESETS & CSS VARIABLES
+           ========================================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg-deep: #090d16;
+            --bg-card: #131b2e;
+            --bg-card-hover: #1c2742;
+            --border-muted: #2d3b59;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-fire: #ff4757;
+            --accent-glow: rgba(255, 71, 87, 0.4);
+            --accent-blue: #00d2d3;
+            --accent-green: #2ed573;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* NAVBAR */
+        header {
+            background: rgba(19, 27, 46, 0.95);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--border-muted);
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            font-size: 1.3rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-main);
+            text-decoration: none;
+        }
+
+        .logo span {
+            color: var(--accent-fire);
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            max-width: 380px;
+            min-width: 200px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.6rem 1rem 0.6rem 2.4rem;
+            border-radius: 20px;
+            border: 1px solid var(--border-muted);
+            background: #090d16;
+            color: #fff;
+            outline: none;
+            font-size: 0.9rem;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent-fire);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.8rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        /* HERO BANNER */
+        .hero {
+            background: linear-gradient(180deg, rgba(9, 13, 22, 0.6) 0%, var(--bg-deep) 100%),
+                        url('https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2000&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            padding: 3rem 1.5rem 2rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: clamp(1.8rem, 5vw, 3rem);
+            text-transform: uppercase;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(45deg, var(--accent-fire), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            color: var(--text-muted);
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+        }
+
+        /* CONTAINER & CATEGORIES */
+        .container {
+            width: 100%;
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .categories {
+            display: flex;
+            justify-content: center;
+            gap: 0.6rem;
+            margin-bottom: 2rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+        }
+
+        .category-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-muted);
+            color: var(--text-muted);
+            padding: 0.5rem 1.2rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .category-btn:hover, .category-btn.active {
+            background: var(--accent-fire);
+            color: #fff;
+            border-color: var(--accent-fire);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        /* GRID STYLES */
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .game-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-muted);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-fire);
+            box-shadow: 0 8px 25px rgba(255, 71, 87, 0.25);
+            background-color: var(--bg-card-hover);
+        }
+
+        .card-thumbnail {
+            width: 100%;
+            height: 170px;
+            background: #0c1220;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid var(--border-muted);
+        }
+
+        .placeholder-icon {
+            font-size: 3rem;
+        }
+
+        .card-content {
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            justify-content: space-between;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .card-tag {
+            font-size: 0.7rem;
+            color: var(--accent-blue);
+            background: rgba(0, 210, 211, 0.1);
+            border: 1px solid var(--accent-blue);
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .card-description {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .play-btn {
+            width: 100%;
+            background: var(--accent-fire);
+            color: white;
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+
+        .play-btn:hover {
+            background: #ff2e43;
+        }
+
+        /* CUSTOMER SUPPORT SECTION */
+        .support-section {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-muted);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 3rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .support-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+            text-align: center;
+        }
+
+        .support-section p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            color: var(--text-main);
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-muted);
+            background: #090d16;
+            color: #fff;
+            outline: none;
+            font-size: 0.9rem;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: var(--accent-blue);
+            color: #090d16;
+            border: none;
+            padding: 0.8rem;
+            border-radius: 8px;
+            font-weight: 800;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .submit-btn:hover {
+            background: #00b8b9;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.2rem;
+            background-color: var(--bg-card);
+            border-top: 1px solid var(--border-muted);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="#" class="logo">🎮 <span>My Game Vault</span></a>
+        <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="Search games...">
+        </div>
+    </header>
+
+    <section class="hero">
+        <h1>My Personal <span>Arcade</span></h1>
+        <p>Click any game to launch in a new tab.</p>
+    </section>
+
+    <main class="container">
+        <div class="categories" id="categoryContainer">
+            <button class="category-btn active" data-category="all">All Games</button>
+            <button class="category-btn" data-category="action">Action</button>
+            <button class="category-btn" data-category="arcade">Arcade</button>
+            <button class="category-btn" data-category="puzzle">Puzzle</button>
+            <button class="category-btn" data-category="simulation">Simulation</button>
+        </div>
+
+        <div class="game-grid" id="gameGrid"></div>
+
+        <!-- WORKING CUSTOMER SERVICE / CONTACT FORM -->
+        <section class="support-section">
+            <h2>💬 Customer Service & Support</h2>
+            <p>Send a direct message to <strong>christiansabado555@gmail.com</strong>.</p>
+            
+            <form action="https://formsubmit.co/christiansabado555@gmail.com" method="POST">
+                <!-- Form Configuration Options -->
+                <input type="hidden" name="_subject" value="New Game Vault Support Message!">
+                <input type="hidden" name="_captcha" value="false">
+
+                <div class="form-group">
+                    <label for="name">Your Name / Gamer Tag</label>
+                    <input type="text" id="name" name="name" placeholder="e.g. PlayerOne" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Your Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="yourname@gmail.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="message">Message / Feedback</label>
+                    <textarea id="message" name="message" rows="4" placeholder="Describe your issue or suggestion..." required></textarea>
+                </div>
+
+                <button type="submit" class="submit-btn">Send Message ✉️</button>
+            </form>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 My Game Vault. Designed for Mobile & Desktop.</p>
+    </footer>
+
+    <script>
+        const games = [
+            {
+                id: "fire-vs-ice",
+                title: "Fire vs Ice",
+                category: "action",
+                icon: "🔥❄️",
+                description: "An epic battle between the elemental forces of Fire and Ice!",
+                gameUrl: "game.html"
+            },
+            {
+                id: "3d-food-truck",
+                title: "3D Food Truck Burger Simulator",
+                category: "simulation",
+                icon: "🍔🚚",
+                description: "Run your own 3D food truck, prepare delicious burgers, and serve customers!",
+                gameUrl: "burger_king.html"
+            },
+            {
+                id: "raijin-vs-fujin",
+                title: "Raijin vs Fujin",
+                category: "arcade",
+                icon: "⚡🌀",
+                description: "A fast-paced high-voltage lightning ping pong duel between Thunder and Wind gods!",
+                gameUrl: "ping_pong_lightning.html"
+            },
+            {
+                id: "flappy-magma-fish",
+                title: "Flappy Magma Fish",
+                category: "arcade",
+                icon: "🐟🔥",
+                description: "Guide the Magma Fish through dangerous fiery obstacle courses!",
+                gameUrl: "flappy.html"
+            },
+            {
+                id: "the-hang-man",
+                title: "The Hang Man",
+                category: "puzzle",
+                icon: "🔤🪢",
+                description: "Test your vocabulary and guess the hidden word before running out of attempts!",
+                gameUrl: "hangman.html"
+            }
+        ];
+
+        const gameGrid = document.getElementById('gameGrid');
+        const searchInput = document.getElementById('searchInput');
+        const categoryContainer = document.getElementById('categoryContainer');
+
+        let currentCategory = 'all';
+
+        function renderGames(gameList) {
+            gameGrid.innerHTML = '';
+            gameList.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'game-card';
+                card.onclick = () => launchGameOutside(game.gameUrl);
+
+                card.innerHTML = `
+                    <div class="card-thumbnail">
+                        <span class="placeholder-icon">${game.icon || '🎯'}</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-info">
+                            <div class="card-header">
+                                <h3 class="card-title">${game.title}</h3>
+                                <span class="card-tag">${game.category}</span>
+                            </div>
+                            <p class="card-description">${game.description}</p>
+                        </div>
+                        <button class="play-btn">Play in New Tab ↗</button>
+                    </div>
+                `;
+                gameGrid.appendChild(card);
+            });
+        }
+
+        function launchGameOutside(url) {
+            window.open(url, '_blank');
+        }
+
+        function filterGames() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const filtered = games.filter(game => {
+                const matchesSearch = game.title.toLowerCase().includes(searchTerm) || 
+                                      game.description.toLowerCase().includes(searchTerm);
+                const matchesCategory = currentCategory === 'all' || game.category.toLowerCase() === currentCategory.toLowerCase();
+                return matchesSearch && matchesCategory;
+            });
+            renderGames(filtered);
+        }
+
+        searchInput.addEventListener('input', filterGames);
+
+        categoryContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('category-btn')) {
+                document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                currentCategory = e.target.getAttribute('data-category');
+                filterGames();
+            }
+        });
+
+        renderGames(games);
+    </script>
+</body>
+</html>
