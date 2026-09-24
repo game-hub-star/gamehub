@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Catch the Falling Elements</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            background-color: #0b0c10;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 500px;
+            max-height: 900px;
+            background: radial-gradient(circle at center, #111827 0%, #030712 100%);
+            box-shadow: 0 0 30px rgba(0, 225, 255, 0.2);
+            overflow: hidden;
+        }
+
+        @media (min-width: 501px) and (min-height: 901px) {
+            #game-container {
+                border-radius: 16px;
+                border: 2px solid #1f2833;
+                height: 90vh;
+            }
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 16px;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            font-size: 14px;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(0,0,0,0.8);
+            pointer-events: auto;
+        }
+
+        .score-box {
+            color: #f3f4f6;
+            flex: 1;
+        }
+
+        .high-score {
+            font-size: 12px;
+            color: #fbbf24;
+        }
+
+        .center-controls-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .time-box {
+            text-align: center;
+            font-size: 13px;
+            color: #38bdf8;
+            margin-right: 4px;
+        }
+
+        .combo-box {
+            text-align: right;
+            color: #fbbf24;
+            flex: 1;
+        }
+
+        .fury-bar-container {
+            width: 80px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            margin-top: 4px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-left: auto;
+        }
+
+        .fury-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ff4500, #ff8c00, #ffff00);
+            box-shadow: 0 0 10px #ff4500;
+            transition: width 0.1s linear;
+        }
+
+        .btn-ui {
+            background: rgba(31, 41, 55, 0.8);
+            color: #e5e7eb;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 20px;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-icon {
+            padding: 6px 10px;
+            font-size: 14px;
+            border-radius: 50%;
+            line-height: 1;
+        }
+
+        .btn-ui:active {
+            transform: scale(0.95);
+            background: rgba(55, 65, 81, 0.9);
+        }
+
+        /* Overlay Modals (Settings & Pause) */
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 7, 18, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: auto;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .settings-card {
+            background: #1f2937;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            width: 85%;
+            max-width: 340px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .settings-card h2 {
+            font-size: 20px;
+            text-align: center;
+            color: #38bdf8;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider-toggle {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #4b5563;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider-toggle:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider-toggle {
+            background-color: #38bdf8;
+        }
+
+        input:checked + .slider-toggle:before {
+            transform: translateX(20px);
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100px;
+            height: 6px;
+            border-radius: 3px;
+            background: #4b5563;
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+        }
+
+        .modal-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 4px 0;
+        }
+
+        .modal-button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 7, 18, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            pointer-events: auto;
+        }
+
+        #game-over-screen.hidden {
+            display: none;
+        }
+
+        h1 {
+            font-size: 32px;
+            color: #ef4444;
+            text-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+        }
+
+        .stat-line {
+            font-size: 16px;
+            color: #e5e7eb;
+        }
+
+        .btn-main {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            font-size: 15px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(37, 99, 235, 0.4);
+            text-align: center;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+        }
+
+        .btn-main.secondary {
+            background: linear-gradient(135deg, #4b5563, #374151);
+            box-shadow: none;
+        }
+
+        .btn-main:active {
+            transform: scale(0.96);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui-overlay">
+            <div class="hud-top">
+                <div class="score-box">
+                    <div>SCORE: <span id="scoreText">0</span></div>
+                    <div class="high-score">HIGH: <span id="highScoreText">0</span></div>
+                    <div style="font-size: 12px; color: #ef4444; margin-top: 2px;">LIVES: <span id="livesText">❤️❤️❤️</span></div>
+                </div>
+
+                <div class="center-controls-wrapper">
+                    <div class="time-box">
+                        <div>TIME</div>
+                        <div id="timeText" style="font-weight: bold; font-size: 15px;">00:00:00</div>
+                    </div>
+                    <button class="btn-ui btn-icon" onclick="openSettings()" title="Settings">⚙️</button>
+                    <button class="btn-ui btn-icon" id="pauseBtn" onclick="togglePause()" title="Pause Game">⏸️</button>
+                </div>
+
+                <div class="combo-box">
+                    <div>COMBO: x<span id="comboText">1</span></div>
+                    <div style="font-size: 10px; color: #9ca3af;">FURY</div>
+                    <div class="fury-bar-container">
+                        <div id="furyBar" class="fury-bar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Modal (Sound, Volume & Element Switch) -->
+            <div id="settings-modal" class="modal-overlay hidden">
+                <div class="settings-card">
+                    <h2>SETTINGS</h2>
+                    
+                    <div class="setting-row">
+                        <span>SOUND</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="soundToggle" checked onchange="toggleSound()">
+                            <span class="slider-toggle"></span>
+                        </label>
+                    </div>
+
+                    <div class="setting-row">
+                        <span>VOLUME</span>
+                        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05" value="0.3" oninput="adjustVolume()">
+                    </div>
+
+                    <div class="modal-divider"></div>
+
+                    <div class="setting-row">
+                        <span>ELEMENT MODE</span>
+                        <button class="btn-ui" id="elementSwitchBtn" onclick="switchPlayerElement()" ontouchstart="switchPlayerElement(); event.preventDefault();">🔥 FIRE</button>
+                    </div>
+
+                    <div class="modal-button-group" style="margin-top: 8px;">
+                        <a href="game.html" class="btn-main secondary">🏠 MENU</a>
+                        <button class="btn-main" onclick="closeSettings()">CLOSE</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pause Modal -->
+            <div id="pause-modal" class="modal-overlay hidden">
+                <div class="settings-card" style="text-align: center;">
+                    <h2 style="color: #fbbf24; border-bottom: none;">PAUSED</h2>
+                    <p style="color: #9ca3af; font-size: 14px;">Game is currently paused.</p>
+                    <button class="btn-main" style="width: 100%; margin-top: 10px;" onclick="togglePause()">RESUME</button>
+                </div>
+            </div>
+
+            <!-- Game Over Screen -->
+            <div id="game-over-screen" class="hidden">
+                <h1>GAME OVER</h1>
+                <div class="stat-line">Final Score: <span id="finalScore" style="color: #4ade80;">0</span></div>
+                <div class="stat-line">High Score: <span id="finalHighScore" style="color: #fbbf24;">0</span></div>
+                <div class="stat-line">Time Played: <span id="finalTime" style="color: #38bdf8;">00:00:00</span></div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn-main" onclick="resetGame()">PLAY AGAIN</button>
+                    <a href="game.html" class="btn-main secondary">MAIN MENU</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('game-container');
+
+        // UI Elements
+        const scoreText = document.getElementById('scoreText');
+        const highScoreText = document.getElementById('highScoreText');
+        const timeText = document.getElementById('timeText');
+        const livesText = document.getElementById('livesText');
+        const comboText = document.getElementById('comboText');
+        const furyBar = document.getElementById('furyBar');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const soundToggle = document.getElementById('soundToggle');
+        const elementSwitchBtn = document.getElementById('elementSwitchBtn');
+        const settingsModal = document.getElementById('settings-modal');
+        const pauseModal = document.getElementById('pause-modal');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreText = document.getElementById('finalScore');
+        const finalHighScoreText = document.getElementById('finalHighScore');
+        const finalTimeText = document.getElementById('finalTime');
+
+        // High Score & Synced Element from index.html
+        let highScore = parseInt(localStorage.getItem('elemental_game_highscore')) || 0;
+        let defaultSavedElement = localStorage.getItem('elemental_game_default_element') || 'FIRE';
+
+        // Game Variables
+        let score = 0;
+        let lives = 3;
+        let combo = 1;
+        let furyEnergy = 0;
+        let isFuryActive = false;
+        let furyTimer = 0;
+        let isGameOver = false;
+        let isPaused = false;
+        
+        let secondsPlayed = 0;
+        let timeInterval = null;
+        let globalSpeedMultiplier = 1.0;
+        let spawnTimer = 0;
+        let baseSpawnInterval = 60;
+
+        // Player Catcher
+        const player = {
+            x: 0,
+            y: 0,
+            radius: 28,
+            element: defaultSavedElement
+        };
+
+        let cores = [];
+        let particles = [];
+        let shockwaves = [];
+
+        // Dragging State
+        let isDragging = false;
+        let dragStartX = 0;
+        let playerStartX = 0;
+
+        // Web Audio Synthesizer (Music & FX)
+        let audioCtx = null;
+        let masterGain = null;
+        let isAudioInit = false;
+        let musicTimer = null;
+        let isSoundOn = true;
+
+        function loadSavedAudioSettings() {
+            const savedSound = localStorage.getItem('elemental_game_sound');
+            if (savedSound !== null) {
+                isSoundOn = savedSound === 'true';
+                soundToggle.checked = isSoundOn;
+            }
+            const savedVolume = localStorage.getItem('elemental_game_volume');
+            if (savedVolume !== null) {
+                volumeSlider.value = savedVolume;
+            }
+        }
+
+        function initAudio() {
+            if (isAudioInit) return;
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            masterGain = audioCtx.createGain();
+            updateMasterVolume();
+            masterGain.connect(audioCtx.destination);
+            isAudioInit = true;
+            startSynthesizedMusic();
+        }
+
+        function updateMasterVolume() {
+            if (!masterGain) return;
+            if (isSoundOn) {
+                masterGain.gain.value = parseFloat(volumeSlider.value);
+            } else {
+                masterGain.gain.value = 0;
+            }
+        }
+
+        function toggleSound() {
+            isSoundOn = soundToggle.checked;
+            localStorage.setItem('elemental_game_sound', isSoundOn ? 'true' : 'false');
+            updateMasterVolume();
+        }
+
+        function adjustVolume() {
+            localStorage.setItem('elemental_game_volume', volumeSlider.value);
+            updateMasterVolume();
+        }
+
+        function updateElementSwitchBtnLabel() {
+            if (elementSwitchBtn) {
+                elementSwitchBtn.innerText = player.element === 'FIRE' ? '🔥 FIRE' : '❄️ ICE';
+            }
+        }
+
+        function openSettings() {
+            isPaused = true;
+            settingsModal.classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            isPaused = false;
+            settingsModal.classList.add('hidden');
+        }
+
+        function togglePause() {
+            if (isGameOver) return;
+            if (!settingsModal.classList.contains('hidden')) {
+                closeSettings();
+            }
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseModal.classList.remove('hidden');
+                pauseBtn.innerText = '▶️';
+            } else {
+                pauseModal.classList.add('hidden');
+                pauseBtn.innerText = '⏸️';
+            }
+        }
+
+        const notes = [220.00, 261.63, 329.63, 392.00, 440.00, 523.25];
+        let noteIndex = 0;
+
+        function playNote(freq, type = 'sine', duration = 0.2, volume = 0.15) {
+            if (!audioCtx || audioCtx.state === 'suspended' || !isSoundOn) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const noteGain = audioCtx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+                noteGain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                noteGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+                osc.connect(noteGain);
+                noteGain.connect(masterGain);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function startSynthesizedMusic() {
+            if (musicTimer) clearInterval(musicTimer);
+            musicTimer = setInterval(() => {
+                if (!isGameOver && !isPaused && audioCtx && audioCtx.state === 'running') {
+                    const freq = notes[noteIndex % notes.length];
+                    playNote(freq, 'triangle', 0.25, 0.12);
+                    if (noteIndex % 4 === 0) {
+                        playNote(110, 'sine', 0.4, 0.2);
+                    }
+                    noteIndex++;
+                }
+            }, 300);
+        }
+
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            player.y = canvas.height - 60;
+            if (player.x === 0) player.x = canvas.width / 2;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function handlePointerDown(clientX) {
+            if (!isAudioInit) initAudio();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            if (isGameOver || isPaused) return;
+
+            isDragging = true;
+            dragStartX = clientX;
+            playerStartX = player.x;
+        }
+
+        function handlePointerMove(clientX) {
+            if (!isDragging || isPaused) return;
+            const deltaX = clientX - dragStartX;
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, playerStartX + deltaX));
+        }
+
+        function handlePointerUp() {
+            isDragging = false;
+        }
+
+        canvas.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            handlePointerDown(touch.clientX);
+        }, { passive: true });
+
+        canvas.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            handlePointerMove(touch.clientX);
+        }, { passive: true });
+
+        canvas.addEventListener('touchend', handlePointerUp);
+
+        canvas.addEventListener('mousedown', (e) => {
+            handlePointerDown(e.clientX);
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            handlePointerMove(e.clientX);
+        });
+
+        window.addEventListener('mouseup', handlePointerUp);
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') switchPlayerElement();
+            if (e.code === 'KeyP') togglePause();
+        });
+
+        function switchPlayerElement() {
+            if (!isAudioInit) initAudio();
+            if (isGameOver) return; // Works in Settings modal while paused
+
+            player.element = player.element === 'FIRE' ? 'ICE' : 'FIRE';
+            
+            // Save state so index.html syncs automatically
+            localStorage.setItem('elemental_game_default_element', player.element);
+
+            updateElementSwitchBtnLabel();
+            playNote(587.33, 'sawtooth', 0.15, 0.2);
+            createShockwave(player.x, player.y, getElementColor(player.element));
+        }
+
+        function startTimer() {
+            if (timeInterval) clearInterval(timeInterval);
+            timeInterval = setInterval(() => {
+                if (!isGameOver && !isPaused) {
+                    secondsPlayed++;
+                    globalSpeedMultiplier += 0.025;
+                    updateTimerDisplay();
+                }
+            }, 1000);
+        }
+
+        function formatTime(seconds) {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            return [hrs, mins, secs].map(v => v < 10 ? "0" + v : v).join(":");
+        }
+
+        function updateTimerDisplay() {
+            timeText.innerText = formatTime(secondsPlayed);
+        }
+
+        function getElementColor(element) {
+            return element === 'FIRE' ? '#ff4500' : '#00f0ff';
+        }
+
+        function spawnCore() {
+            const radius = 14;
+            const x = Math.random() * (canvas.width - radius * 2) + radius;
+            const element = Math.random() > 0.5 ? 'FIRE' : 'ICE';
+            const baseSpeed = 2 + Math.random() * 2;
+            const speed = baseSpeed * globalSpeedMultiplier;
+
+            cores.push({
+                x: x,
+                y: -radius,
+                radius: radius,
+                element: element,
+                speed: speed,
+                rotation: 0
+            });
+        }
+
+        function createExplosion(x, y, color, count = 15) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 5 + 2;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: Math.random() * 4 + 2,
+                    color: color,
+                    alpha: 1,
+                    decay: Math.random() * 0.03 + 0.01
+                });
+            }
+        }
+
+        function createShockwave(x, y, color) {
+            shockwaves.push({
+                x: x,
+                y: y,
+                radius: 10,
+                maxRadius: 60,
+                color: color,
+                alpha: 1
+            });
+        }
+
+        function update() {
+            if (isGameOver || isPaused) return;
+
+            if (isFuryActive) {
+                furyTimer--;
+                furyEnergy = (furyTimer / 300) * 100;
+                if (furyTimer <= 0) {
+                    isFuryActive = false;
+                    furyEnergy = 0;
+                }
+            }
+
+            furyBar.style.width = `${furyEnergy}%`;
+
+            spawnTimer++;
+            const currentSpawnInterval = Math.max(15, baseSpawnInterval / globalSpeedMultiplier);
+            if (spawnTimer >= currentSpawnInterval) {
+                spawnCore();
+                spawnTimer = 0;
+            }
+
+            for (let i = cores.length - 1; i >= 0; i--) {
+                const core = cores[i];
+                core.y += core.speed;
+                core.rotation += 0.05 * globalSpeedMultiplier;
+
+                const dist = Math.hypot(player.x - core.x, player.y - core.y);
+                if (dist < player.radius + core.radius) {
+                    if (isFuryActive || core.element === player.element) {
+                        score += 10 * combo;
+                        combo++;
+                        
+                        playNote(880 + combo * 20, 'sine', 0.1, 0.2);
+
+                        if (score > highScore) {
+                            highScore = score;
+                            localStorage.setItem('elemental_game_highscore', highScore);
+                        }
+
+                        if (!isFuryActive) {
+                            furyEnergy += 10;
+                            if (furyEnergy >= 100) {
+                                isFuryActive = true;
+                                furyTimer = 300;
+                                playNote(1046.50, 'square', 0.4, 0.3);
+                                createShockwave(player.x, player.y, '#ffffff');
+                            }
+                        }
+
+                        createExplosion(core.x, core.y, getElementColor(core.element), 20);
+                    } else {
+                        lives--;
+                        combo = 1;
+                        furyEnergy = Math.max(0, furyEnergy - 20);
+                        playNote(150, 'sawtooth', 0.3, 0.3);
+                        createExplosion(core.x, core.y, '#ff0000', 25);
+                        
+                        if (lives <= 0) endGame();
+                    }
+
+                    cores.splice(i, 1);
+                    updateHUD();
+                    continue;
+                }
+
+                if (core.y - core.radius > canvas.height) {
+                    combo = 1;
+                    updateHUD();
+                    cores.splice(i, 1);
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= p.decay;
+                if (p.alpha <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = shockwaves.length - 1; i >= 0; i--) {
+                const sw = shockwaves[i];
+                sw.radius += 3;
+                sw.alpha -= 0.04;
+                if (sw.alpha <= 0 || sw.radius >= sw.maxRadius) shockwaves.splice(i, 1);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            shockwaves.forEach(sw => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = sw.color;
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = Math.max(0, sw.alpha);
+                ctx.stroke();
+                ctx.restore();
+            });
+
+            particles.forEach(p => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = Math.max(0, p.alpha);
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 8;
+                ctx.fill();
+                ctx.restore();
+            });
+
+            cores.forEach(core => {
+                ctx.save();
+                ctx.translate(core.x, core.y);
+                ctx.rotate(core.rotation);
+
+                const color = getElementColor(core.element);
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 12;
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                
+                if (core.element === 'FIRE') {
+                    ctx.moveTo(0, -core.radius - 2);
+                    ctx.lineTo(core.radius, 0);
+                    ctx.lineTo(0, core.radius + 2);
+                    ctx.lineTo(-core.radius, 0);
+                } else {
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (Math.PI / 3) * i;
+                        const x = core.radius * Math.cos(angle);
+                        const y = core.radius * Math.sin(angle);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(0, 0, core.radius * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // Player Catcher
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            const activeColor = isFuryActive ? '#ffff00' : getElementColor(player.element);
+
+            ctx.shadowColor = activeColor;
+            ctx.shadowBlur = isFuryActive ? 25 : 15;
+
+            ctx.beginPath();
+            ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = activeColor;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(0, 0, player.radius * 0.6, 0, Math.PI * 2);
+            ctx.fillStyle = '#0b0c10';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(0, 0, player.radius * 0.3, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function updateHUD() {
+            scoreText.innerText = score;
+            highScoreText.innerText = highScore;
+            comboText.innerText = combo;
+            livesText.innerText = '❤️'.repeat(Math.max(0, lives));
+        }
+
+        function endGame() {
+            isGameOver = true;
+            clearInterval(timeInterval);
+            playNote(100, 'sawtooth', 0.8, 0.4);
+            finalScoreText.innerText = score;
+            finalHighScoreText.innerText = highScore;
+            finalTimeText.innerText = formatTime(secondsPlayed);
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        function resetGame() {
+            score = 0;
+            lives = 3;
+            combo = 1;
+            furyEnergy = 0;
+            isFuryActive = false;
+            furyTimer = 0;
+            isGameOver = false;
+            isPaused = false;
+            secondsPlayed = 0;
+            globalSpeedMultiplier = 1.0;
+            cores = [];
+            particles = [];
+            shockwaves = [];
+            spawnTimer = 0;
+            
+            updateHUD();
+            updateTimerDisplay();
+            settingsModal.classList.add('hidden');
+            pauseModal.classList.add('hidden');
+            pauseBtn.innerText = '⏸️';
+            gameOverScreen.classList.add('hidden');
+            startTimer();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // Init
+        loadSavedAudioSettings();
+        updateElementSwitchBtnLabel();
+        resizeCanvas();
+        settingsModal.classList.add('hidden');
+        pauseModal.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        updateHUD();
+        startTimer();
+        loop();
+    </script>
+</body>
+</html>
+
+<!-- EXIT BUTTON FOR GAMES -->
+<style>
+  .hub-exit-btn {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    z-index: 999999;
+    background: #ff4757;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    padding: 10px 18px;
+    border-radius: 25px;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 71, 87, 0.5);
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+  .hub-exit-btn:hover {
+    background: #ff2e43;
+    transform: scale(1.08);
+  }
+</style>
+
+<button class="hub-exit-btn" onclick="exitToHub()">✖ Exit Game</button>
+
+<script>
+  function exitToHub() {
+    // If opened directly or in a new window/page, go back to index.html
+    if (window.top !== window.self) {
+      window.top.postMessage('closeGame', '*');
+    } else {
+      window.location.href = 'game_hub.html';
+    }
+  }
+</script>

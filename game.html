@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Catch the Falling Elements - Main Menu</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #0b0c10;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .menu-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 500px;
+            max-height: 900px;
+            background: radial-gradient(circle at center, #111827 0%, #030712 100%);
+            box-shadow: 0 0 30px rgba(0, 225, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px 24px;
+            text-align: center;
+        }
+
+        @media (min-width: 501px) and (min-height: 901px) {
+            .menu-container {
+                border-radius: 16px;
+                border: 2px solid #1f2833;
+                height: 90vh;
+            }
+        }
+
+        /* Top-Left Settings Button */
+        .settings-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(31, 41, 55, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            font-size: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .settings-btn:active {
+            transform: scale(0.9);
+            background: rgba(55, 65, 81, 1);
+        }
+
+        .title-box {
+            margin-top: 30px;
+        }
+
+        .title-box h1 {
+            font-size: 32px;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #ff4500, #00f0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .title-box p {
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .element-preview-card {
+            background: rgba(31, 41, 55, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            backdrop-filter: blur(8px);
+        }
+
+        .element-badge {
+            font-size: 20px;
+            font-weight: bold;
+            padding: 8px 20px;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .element-badge.fire {
+            background: rgba(255, 69, 0, 0.2);
+            color: #ff4500;
+            border: 1px solid #ff4500;
+            box-shadow: 0 0 15px rgba(255, 69, 0, 0.4);
+        }
+
+        .element-badge.ice {
+            background: rgba(0, 240, 255, 0.2);
+            color: #00f0ff;
+            border: 1px solid #00f0ff;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+        }
+
+        .btn-menu {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(37, 99, 235, 0.4);
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            transition: transform 0.1s;
+        }
+
+        .btn-secondary {
+            background: rgba(31, 41, 55, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e5e7eb;
+            box-shadow: none;
+        }
+
+        .btn-menu:active {
+            transform: scale(0.96);
+        }
+
+        .stats-footer {
+            font-size: 13px;
+            color: #fbbf24;
+        }
+
+        /* Modal / Overlay UI */
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 7, 18, 0.85);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: rgba(17, 24, 39, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            width: 85%;
+            max-width: 380px;
+            padding: 24px;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            text-align: left;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 12px;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            color: #ffffff;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: #9ca3af;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .setting-label {
+            font-size: 15px;
+            color: #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Volume Slider */
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 110px;
+            height: 6px;
+            border-radius: 3px;
+            background: #374151;
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #00f0ff;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+        }
+
+        .volume-value {
+            font-size: 12px;
+            color: #9ca3af;
+            width: 32px;
+            text-align: right;
+        }
+
+        /* Toggle Switches */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 26px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #374151;
+            transition: .3s;
+            border-radius: 26px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2563eb;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Music Tag -->
+    <audio id="bgMusic" src="music.mp3" loop></audio>
+
+    <div class="menu-container">
+        <!-- Settings Button at Top Left -->
+        <button class="settings-btn" onclick="openSettings()" aria-label="Settings">⚙️</button>
+
+        <div class="title-box">
+            <h1>ELEMENTAL CATCH</h1>
+            <p>Match falling cores with your current element!</p>
+        </div>
+
+        <div class="element-preview-card">
+            <span style="font-size: 12px; color: #9ca3af; letter-spacing: 1px;">CURRENT STARTING ELEMENT</span>
+            <div id="elementDisplay" class="element-badge fire">🔥 FIRE</div>
+        </div>
+
+        <div>
+            <button onclick="playGame()" class="btn-menu">▶️ PLAY NOW</button>
+            <div class="stats-footer" style="margin-top: 16px;">
+                HIGH SCORE: <span id="menuHighScore">0</span>
+            </div>
+        </div>
+
+        <!-- Settings Modal Overlay -->
+        <div id="settingsModal" class="modal-overlay">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h2>⚙️ Settings</h2>
+                    <button class="close-btn" onclick="closeSettings()">✖</button>
+                </div>
+
+                <!-- Element Switch in Settings -->
+                <div class="setting-row">
+                    <span class="setting-label">Starting Element</span>
+                    <button class="btn-menu btn-secondary" style="width: auto; padding: 8px 16px; font-size: 14px;" onclick="toggleStartingElement()">🔄 Switch</button>
+                </div>
+
+                <!-- Music Switch -->
+                <div class="setting-row">
+                    <span class="setting-label">🎵 Music</span>
+                    <label class="switch">
+                        <input type="checkbox" id="musicToggle" onchange="toggleMusic(this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- Sound Volume Slider -->
+                <div class="setting-row">
+                    <span class="setting-label">🔊 Sound Vol</span>
+                    <div class="volume-control">
+                        <input type="range" id="sfxVolumeSlider" class="volume-slider" min="0" max="1" step="0.05" oninput="updateSfxVolume(this.value)">
+                        <span id="sfxVolumeText" class="volume-value">100%</span>
+                    </div>
+                </div>
+
+                <button class="btn-menu" style="margin-top: 10px;" onclick="closeSettings()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const bgMusic = document.getElementById('bgMusic');
+
+        // Load high score
+        const highScore = localStorage.getItem('elemental_game_highscore') || 0;
+        document.getElementById('menuHighScore').innerText = highScore;
+
+        // Get saved preferences
+        let currentElement = localStorage.getItem('elemental_game_default_element') || 'FIRE';
+        let musicEnabled = localStorage.getItem('elemental_game_music') !== 'false'; // defaults to true
+        let sfxVolume = localStorage.getItem('elemental_game_sfx_volume') !== null ? parseFloat(localStorage.getItem('elemental_game_sfx_volume')) : 1.0;
+
+        const elementDisplay = document.getElementById('elementDisplay');
+        const settingsModal = document.getElementById('settingsModal');
+        const musicToggle = document.getElementById('musicToggle');
+        const sfxVolumeSlider = document.getElementById('sfxVolumeSlider');
+        const sfxVolumeText = document.getElementById('sfxVolumeText');
+
+        function updateUI() {
+            if (currentElement === 'FIRE') {
+                elementDisplay.innerText = '🔥 FIRE';
+                elementDisplay.className = 'element-badge fire';
+            } else {
+                elementDisplay.innerText = '❄️ ICE';
+                elementDisplay.className = 'element-badge ice';
+            }
+
+            musicToggle.checked = musicEnabled;
+            sfxVolumeSlider.value = sfxVolume;
+            sfxVolumeText.innerText = Math.round(sfxVolume * 100) + '%';
+        }
+
+        function initMusic() {
+            // Restore playback position if coming back from play.html
+            const savedTime = parseFloat(localStorage.getItem('elemental_game_music_time')) || 0;
+            bgMusic.currentTime = savedTime;
+
+            if (musicEnabled) {
+                bgMusic.play().catch(() => {
+                    // Autoplay restriction: play music on first user click
+                    const playOnInteraction = () => {
+                        if (musicEnabled) bgMusic.play();
+                        document.removeEventListener('click', playOnInteraction);
+                    };
+                    document.addEventListener('click', playOnInteraction);
+                });
+            }
+        }
+
+        function toggleStartingElement() {
+            currentElement = currentElement === 'FIRE' ? 'ICE' : 'FIRE';
+            localStorage.setItem('elemental_game_default_element', currentElement);
+            updateUI();
+        }
+
+        function openSettings() {
+            settingsModal.classList.add('active');
+        }
+
+        function closeSettings() {
+            settingsModal.classList.remove('active');
+        }
+
+        function toggleMusic(enabled) {
+            musicEnabled = enabled;
+            localStorage.setItem('elemental_game_music', musicEnabled);
+            if (musicEnabled) {
+                bgMusic.play();
+            } else {
+                bgMusic.pause();
+            }
+        }
+
+        function updateSfxVolume(val) {
+            sfxVolume = parseFloat(val);
+            localStorage.setItem('elemental_game_sfx_volume', sfxVolume);
+            sfxVolumeText.innerText = Math.round(sfxVolume * 100) + '%';
+        }
+
+        function playGame() {
+            // Save current music position so play.html can sync music smoothly
+            localStorage.setItem('elemental_game_music_time', bgMusic.currentTime);
+            window.location.href = "play.html";
+        }
+
+        // Keep updating saved music position periodically
+        setInterval(() => {
+            if (!bgMusic.paused) {
+                localStorage.setItem('elemental_game_music_time', bgMusic.currentTime);
+            }
+        }, 500);
+
+        // Initialize UI & Music on load
+        updateUI();
+        initMusic();
+    </script>
+</body>
+</html>
+
+<!-- EXIT BUTTON FOR GAMES -->
+<style>
+  .hub-exit-btn {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    z-index: 999999;
+    background: #ff4757;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    padding: 10px 18px;
+    border-radius: 25px;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 71, 87, 0.5);
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+  .hub-exit-btn:hover {
+    background: #ff2e43;
+    transform: scale(1.08);
+  }
+</style>
+
+<button class="hub-exit-btn" onclick="exitToHub()">✖ Exit Game</button>
+
+<script>
+  function exitToHub() {
+    // If opened directly or in a new window/page, go back to index.html
+    if (window.top !== window.self) {
+      window.top.postMessage('closeGame', '*');
+    } else {
+      window.location.href = 'game_hub.html';
+    }
+  }
+</script> 

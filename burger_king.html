@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>3D Food Truck Simulator - First Person</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js (3D WebGL Graphics Engine) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800&display=swap');
+
+    * {
+      font-family: 'Fredoka', cursive, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0f172a;
+    }
+
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.45);
+    }
+
+    .glass-card {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-bounce {
+      transition: transform 0.1s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+    .btn-bounce:active {
+      transform: scale(0.92);
+    }
+
+    /* Floating Money Text Animation */
+    @keyframes floatUpFade {
+      0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      50% { opacity: 1; transform: translate(-50%, -40px) scale(1.25); }
+      100% { opacity: 0; transform: translate(-50%, -80px) scale(1); }
+    }
+
+    .floating-money {
+      position: absolute;
+      animation: floatUpFade 1.8s ease-out forwards;
+      pointer-events: none;
+      font-weight: 800;
+      color: #10B981;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+      z-index: 60;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #f59e0b;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="text-white">
+
+  <div id="canvas-container"></div>
+
+  <!-- MAIN HUD UI OVERLAY -->
+  <div class="relative z-10 flex flex-col justify-between h-screen w-full p-2 sm:p-4 pointer-events-none">
+
+    <!-- TOP HEADER BAR (Earnings & Controls) -->
+    <div class="flex justify-between items-start w-full gap-2">
+
+      <!-- Left: Total Earnings Display -->
+      <div class="glass-panel rounded-2xl p-2.5 sm:p-3 flex items-center gap-3 pointer-events-auto border-l-4 border-amber-500 shadow-xl">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-tr from-amber-600 to-yellow-400 flex items-center justify-center text-white text-xl sm:text-2xl shadow-md">
+          <i class="fa-solid fa-coins"></i>
+        </div>
+        <div>
+          <div class="text-[10px] sm:text-xs uppercase tracking-wider text-amber-300 font-bold">Earnings</div>
+          <div id="cash-display" class="text-xl sm:text-2xl font-black text-amber-400 flex items-center gap-1">
+            $<span id="cash-amount">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Shop & Settings Buttons -->
+      <div class="flex items-center gap-2 sm:gap-3 pointer-events-auto">
+        <button id="btn-open-shop" class="btn-bounce glass-panel hover:bg-amber-500/20 text-amber-400 border border-amber-500/40 px-3 sm:px-5 h-11 sm:h-12 rounded-2xl flex items-center justify-center gap-2 font-bold shadow-lg text-sm sm:text-base">
+          <i class="fa-solid fa-store text-lg"></i>
+          <span>Shop</span>
+        </button>
+
+        <button id="btn-open-settings" class="btn-bounce glass-panel hover:bg-slate-700/50 text-slate-200 border border-slate-600/40 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold shadow-lg">
+          <i class="fa-solid fa-gear text-lg sm:text-xl"></i>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- MIDDLE: CUSTOMER RECIPE ORDER TICKET CARD -->
+    <div class="w-full flex justify-start items-start pt-2 pointer-events-auto">
+      <div id="order-ticket-card" class="glass-panel border-l-4 border-sky-400 rounded-2xl p-3 sm:p-4 max-w-xs sm:max-w-sm w-full flex flex-col gap-2 shadow-2xl transition-all duration-300">
+        
+        <!-- Customer Name & Timer Header -->
+        <div class="flex justify-between items-center border-b border-slate-700/80 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🧑‍🍳</span>
+            <div>
+              <div id="ticket-customer-name" class="font-bold text-xs sm:text-sm text-slate-100">Waiting for customer...</div>
+              <div id="ticket-recipe-title" class="text-[10px] sm:text-xs text-amber-300 font-semibold">No order placed</div>
+            </div>
+          </div>
+          <div id="ticket-timer-badge" class="bg-slate-800 text-slate-400 text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1">
+            <i class="fa-solid fa-clock"></i> <span id="ticket-timer-text">--s</span>
+          </div>
+        </div>
+
+        <!-- Recipe Assembly Order (Bottom to Top) -->
+        <div class="flex flex-col gap-1 text-xs">
+          <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Required Layers (Bottom → Top):</div>
+          <div id="ticket-layers-list" class="flex flex-col gap-1 max-h-28 overflow-y-auto pr-1">
+            <span class="text-slate-500 italic text-xs">Walk up to customer window to accept order.</span>
+          </div>
+        </div>
+
+        <!-- Required Drink & Side Order -->
+        <div class="flex items-center justify-between bg-slate-900/60 p-2 rounded-xl border border-slate-800 text-xs">
+          <span class="text-slate-400 font-medium">Side Order:</span>
+          <span id="ticket-sides-text" class="font-bold text-emerald-400">None</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- BOTTOM FIRST-PERSON KITCHEN CONTROL PANELS -->
+    <div class="w-full flex flex-col gap-2 pointer-events-auto pb-1 sm:pb-3 max-w-4xl mx-auto">
+
+      <!-- Current Plate & Tray Status -->
+      <div class="glass-panel rounded-2xl px-3 py-2 flex items-center justify-between text-xs border border-amber-500/30">
+        <div class="flex items-center gap-2 overflow-hidden mr-2">
+          <span class="text-amber-400 font-bold">Plate Stack:</span>
+          <span id="plate-stack-text" class="text-slate-200 truncate font-semibold">Empty</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-sky-400 font-bold">Side:</span>
+          <span id="plate-side-text" class="text-slate-200 font-semibold">None</span>
+        </div>
+      </div>
+
+      <!-- Station Buttons (Grill, Assembly, Drinks/Sides, Delivery) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+
+        <!-- 1. GRILL STATION -->
+        <div class="glass-panel p-2 sm:p-3 rounded-2xl flex flex-col gap-2 border-t-2 border-amber-500">
+          <div class="flex justify-between items-center text-xs font-bold text-amber-400">
+            <span>🔥 Grill Station</span>
+            <span id="grill-status-badge" class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full">Ready</span>
+          </div>
+          <button id="btn-cook-patty" class="btn-bounce bg-gradient-to-b from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 active:from-amber-800 text-white p-2 sm:p-2.5 rounded-xl flex items-center justify-center gap-2 font-bold shadow-md border border-amber-400/30 text-xs">
+            <span class="text-lg">🥩</span> Cook Patty
+          </button>
+          <div id="grill-progress-bar" class="w-full h-2 bg-slate-900 rounded-full overflow-hidden hidden">
+            <div id="grill-progress-fill" class="h-full bg-amber-400 w-0 transition-all duration-75"></div>
+          </div>
+        </div>
+
+        <!-- 2. INGREDIENTS ASSEMBLY STATION -->
+        <div class="glass-panel p-2 sm:p-3 rounded-2xl flex flex-col gap-1.5 border-t-2 border-emerald-500 sm:col-span-2">
+          <div class="text-xs font-bold text-emerald-400">🍔 Assembly Trays</div>
+          <div class="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+            <button id="btn-add-bun-bottom" class="btn-bounce bg-slate-800 hover:bg-slate-700 text-white p-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700">
+              🍞 Bot Bun
+            </button>
+            <button id="btn-add-cooked-patty" class="btn-bounce bg-slate-800 hover:bg-slate-700 text-white p-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700">
+              🍖 Patty
+            </button>
+            <button id="btn-add-cheese" class="btn-bounce bg-slate-800 hover:bg-slate-700 text-white p-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700">
+              🧀 Cheese
+            </button>
+            <button id="btn-add-salad" class="btn-bounce bg-slate-800 hover:bg-slate-700 text-white p-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700">
+              🥗 Salad
+            </button>
+            <button id="btn-add-tomato" class="btn-bounce bg-slate-800 hover:bg-slate-700 text-white p-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700">
+              🍅 Tomato
+            </button>
+            <button id="btn-add-ketchup" class="btn-bounce bg-slate-800 hover:bg-slate-700 text-white p-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700">
+              🥫 Ketchup
+            </button>
+            <button id="btn-add-mustard" class="btn-bounce bg-slate-800 hover:bg-slate-700 text-white p-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700">
+              🟡 Mustard
+            </button>
+            <button id="btn-add-bun-top" class="btn-bounce bg-slate-800 hover:bg-slate-700 text-white p-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700">
+              🍞 Top Bun
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. DRINKS / SIDES & DELIVERY TRAY -->
+        <div class="glass-panel p-2 sm:p-3 rounded-2xl flex flex-col justify-between gap-1.5 border-t-2 border-sky-500">
+          <div class="text-xs font-bold text-sky-400">🥤 Drinks & Delivery</div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button id="btn-add-cola" class="btn-bounce bg-slate-800 hover:bg-slate-700 text-white p-1.5 rounded-xl text-[10px] sm:text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700">
+              🥤 Cola
+            </button>
+            <button id="btn-add-lemonade" class="btn-bounce bg-slate-800 hover:bg-slate-700 text-white p-1.5 rounded-xl text-[10px] sm:text-[11px] font-bold flex items-center justify-center gap-1 border border-slate-700">
+              🍋 Lemonade
+            </button>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button id="btn-clear-plate" class="btn-bounce bg-rose-900/60 hover:bg-rose-800 text-rose-200 px-2 py-1.5 rounded-xl text-xs font-bold flex-1">
+              Trash
+            </button>
+            <button id="btn-serve-order" class="btn-bounce bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-black shadow-lg flex-[2] border border-emerald-300/40">
+              SERVE! 🛎️
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- MODAL 1: UPGRADE SHOP -->
+  <div id="modal-shop" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="glass-panel w-full max-w-md rounded-3xl p-5 border border-amber-500/30 flex flex-col gap-4 shadow-2xl transform scale-95 transition-transform duration-300">
+      
+      <!-- Modal Header -->
+      <div class="flex justify-between items-center border-b border-slate-700/80 pb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-shop"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-black text-amber-400">Equipment & Recipe Shop</h2>
+            <p class="text-xs text-slate-400">Upgrade kitchen appliances & unlock pricing</p>
+          </div>
+        </div>
+        <button id="btn-close-shop" class="text-slate-400 hover:text-white w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Upgrades List -->
+      <div class="flex flex-col gap-3 max-h-[55vh] overflow-y-auto pr-1">
+
+        <!-- Upgrade 1: Grill Speed -->
+        <div class="glass-card p-3 rounded-2xl flex items-center justify-between gap-3 border-l-4 border-amber-500">
+          <div class="flex gap-3 items-center">
+            <div class="text-2xl">🔥</div>
+            <div>
+              <div class="font-bold text-xs sm:text-sm text-slate-100">Turbo Grill Speed</div>
+              <div id="shop-speed-desc" class="text-[11px] text-slate-400">Grill time: 4.0s</div>
+            </div>
+          </div>
+          <button id="btn-upgrade-speed" class="btn-bounce bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-xs flex flex-col items-center min-w-[80px]">
+            <span>UPGRADE</span>
+            <span id="cost-speed" class="text-[10px] opacity-80">$35</span>
+          </button>
+        </div>
+
+        <!-- Upgrade 2: Gourmet Price Multiplier -->
+        <div class="glass-card p-3 rounded-2xl flex items-center justify-between gap-3 border-l-4 border-emerald-500">
+          <div class="flex gap-3 items-center">
+            <div class="text-2xl">💎</div>
+            <div>
+              <div class="font-bold text-xs sm:text-sm text-slate-100">Gourmet Recipe Price</div>
+              <div id="shop-price-desc" class="text-[11px] text-slate-400">Price Boost: +0%</div>
+            </div>
+          </div>
+          <button id="btn-upgrade-price" class="btn-bounce bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-xs flex flex-col items-center min-w-[80px]">
+            <span>UPGRADE</span>
+            <span id="cost-price" class="text-[10px] opacity-80">$50</span>
+          </button>
+        </div>
+
+        <!-- Upgrade 3: Patience / Timer Upgrade -->
+        <div class="glass-card p-3 rounded-2xl flex items-center justify-between gap-3 border-l-4 border-sky-400">
+          <div class="flex gap-3 items-center">
+            <div class="text-2xl">⏱️</div>
+            <div>
+              <div class="font-bold text-xs sm:text-sm text-slate-100">Customer Patience</div>
+              <div id="shop-timer-desc" class="text-[11px] text-slate-400">Extra Timer: +0s</div>
+            </div>
+          </div>
+          <button id="btn-upgrade-timer" class="btn-bounce bg-sky-400 hover:bg-sky-300 text-slate-950 font-black px-3 py-1.5 rounded-xl text-xs flex flex-col items-center min-w-[80px]">
+            <span>UPGRADE</span>
+            <span id="cost-timer" class="text-[10px] opacity-80">$40</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Current Balance Footer -->
+      <div class="bg-slate-900/80 rounded-2xl p-3 flex justify-between items-center text-xs border border-slate-800">
+        <span class="text-slate-400">Available Earnings:</span>
+        <span class="font-black text-amber-400 text-sm">$<span id="shop-cash-amount">0</span></span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL 2: SETTINGS -->
+  <div id="modal-settings" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="glass-panel w-full max-w-md rounded-3xl p-5 border border-slate-700/50 flex flex-col gap-5 shadow-2xl transform scale-95 transition-transform duration-300">
+      
+      <!-- Header -->
+      <div class="flex justify-between items-center border-b border-slate-700/80 pb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-slate-800 text-slate-200 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-sliders"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-black text-slate-100">Game Settings</h2>
+            <p class="text-xs text-slate-400">Audio synthesis & saved progress</p>
+          </div>
+        </div>
+        <button id="btn-close-settings" class="text-slate-400 hover:text-white w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Settings List -->
+      <div class="flex flex-col gap-4">
+        
+        <!-- Music Toggle -->
+        <div class="flex items-center justify-between glass-card p-3.5 rounded-2xl">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-music text-amber-400 text-lg"></i>
+            <div>
+              <div class="font-bold text-xs sm:text-sm">Lo-Fi Kitchen Beats</div>
+              <div class="text-[11px] text-slate-400">Procedural background melody</div>
+            </div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggle-music" class="sr-only peer" checked>
+            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+          </label>
+        </div>
+
+        <!-- Master Sound Volume Slider -->
+        <div class="glass-card p-3.5 rounded-2xl flex flex-col gap-2">
+          <div class="flex justify-between items-center text-xs sm:text-sm">
+            <span class="font-bold flex items-center gap-2">
+              <i class="fa-solid fa-volume-high text-amber-400"></i> SFX Volume
+            </span>
+            <span id="volume-val-text" class="text-xs font-bold text-amber-400">80%</span>
+          </div>
+          <input type="range" id="slider-volume" min="0" max="100" value="80" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500">
+        </div>
+
+        <!-- Reset Data -->
+        <div class="glass-card p-3.5 rounded-2xl flex items-center justify-between">
+          <div>
+            <div class="font-bold text-xs sm:text-sm text-rose-400">Reset Saved Game</div>
+            <div class="text-[11px] text-slate-400">Clear saved earnings & shop upgrades</div>
+          </div>
+          <button id="btn-reset-game" class="btn-bounce bg-rose-600/80 hover:bg-rose-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs">
+            Reset Save
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Persistence Badge -->
+      <div class="text-center text-[11px] text-slate-400 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-floppy-disk text-emerald-400"></i> Auto-saves automatically on exit/refresh
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. WEB AUDIO SYNTHESIZER SYSTEM
+       ========================================================================= */
+    class AudioSystem {
+      constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.musicGain = null;
+        this.sfxGain = null;
+        this.isMusicOn = true;
+        this.volume = 0.8;
+        this.musicLooping = false;
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioCtx();
+
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = this.volume;
+        this.masterGain.connect(this.ctx.destination);
+
+        this.musicGain = this.ctx.createGain();
+        this.musicGain.gain.value = 0.2;
+        this.musicGain.connect(this.masterGain);
+
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.gain.value = 0.6;
+        this.sfxGain.connect(this.masterGain);
+
+        this.startLoFiMusic();
+      }
+
+      setVolume(val) {
+        this.volume = Math.max(0, Math.min(1, val));
+        if (this.masterGain && this.ctx) {
+          this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+        }
+      }
+
+      toggleMusic(enabled) {
+        this.isMusicOn = enabled;
+        if (this.musicGain && this.ctx) {
+          this.musicGain.gain.setValueAtTime(enabled ? 0.2 : 0, this.ctx.currentTime);
+        }
+      }
+
+      playClick() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(850, this.ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.05);
+      }
+
+      playSizzle() {
+        if (!this.ctx) return;
+        const bufferSize = this.ctx.sampleRate * 0.35;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 1400;
+        filter.Q.value = 2.5;
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.sfxGain);
+        noise.start();
+      }
+
+      playCashChime() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        [1046.50, 1318.51, 1567.98].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+          gain.gain.setValueAtTime(0.2, now + idx * 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.3);
+          osc.connect(gain);
+          gain.connect(this.sfxGain);
+          osc.start(now + idx * 0.05);
+          osc.stop(now + idx * 0.05 + 0.3);
+        });
+      }
+
+      playDing() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.6);
+      }
+
+      playErrorSound() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+        osc.frequency.setValueAtTime(140, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.35);
+      }
+
+      startLoFiMusic() {
+        if (this.musicLooping) return;
+        this.musicLooping = true;
+
+        const chordProgression = [
+          [261.63, 329.63, 392.00, 493.88], // Cmaj7
+          [220.00, 261.63, 329.63, 392.00], // Am7
+          [174.61, 220.00, 261.63, 329.63], // Fmaj7
+          [196.00, 246.94, 293.66, 349.23]  // G7
+        ];
+
+        let bar = 0;
+        const playBar = () => {
+          if (!this.musicLooping) return;
+          if (this.isMusicOn && this.ctx) {
+            const chord = chordProgression[bar % chordProgression.length];
+            const now = this.ctx.currentTime;
+
+            chord.forEach((noteFreq, noteIdx) => {
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(noteFreq, now + noteIdx * 0.14);
+
+              gain.gain.setValueAtTime(0.08, now + noteIdx * 0.14);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + noteIdx * 0.14 + 1.8);
+
+              osc.connect(gain);
+              gain.connect(this.musicGain);
+
+              osc.start(now + noteIdx * 0.14);
+              osc.stop(now + noteIdx * 0.14 + 1.8);
+            });
+          }
+
+          bar++;
+          setTimeout(playBar, 2200);
+        };
+
+        playBar();
+      }
+    }
+
+    const audioSys = new AudioSystem();
+  </script>
+
+  <script>
+    /* =========================================================================
+       2. GAME STATE MANAGEMENT & SAVE PERSISTENCE
+       ========================================================================= */
+    const STORAGE_KEY = 'food_truck_burger_fp_save_v2';
+
+    const defaultState = {
+      cash: 20,
+      servedCount: 0,
+      cookSpeedLevel: 1,
+      priceLevel: 1,
+      patienceLevel: 1
+    };
+
+    let gameState = loadState();
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          return Object.assign({}, defaultState, JSON.parse(saved));
+        }
+      } catch (e) {
+        console.warn('Could not load save state:', e);
+      }
+      return Object.assign({}, defaultState);
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+      } catch (e) {
+        console.warn('Could not save state:', e);
+      }
+    }
+
+    function resetState() {
+      gameState = Object.assign({}, defaultState);
+      saveState();
+      updateUI();
+    }
+
+    // Upgrades Pricing Formulas
+    function getCookTime() {
+      return Math.max(1.0, 4.2 - (gameState.cookSpeedLevel - 1) * 0.6);
+    }
+
+    function getPriceMultiplier() {
+      return 1.0 + (gameState.priceLevel - 1) * 0.35;
+    }
+
+    function getCustomerPatienceBonus() {
+      return (gameState.patienceLevel - 1) * 6;
+    }
+
+    function getUpgradeCostSpeed() {
+      return Math.floor(35 * Math.pow(1.6, gameState.cookSpeedLevel - 1));
+    }
+
+    function getUpgradeCostPrice() {
+      return Math.floor(50 * Math.pow(1.8, gameState.priceLevel - 1));
+    }
+
+    function getUpgradeCostPatience() {
+      return Math.floor(40 * Math.pow(1.7, gameState.patienceLevel - 1));
+    }
+  </script>
+
+  <script>
+    /* =========================================================================
+       3. FIRST-PERSON 3D SCENE & INTERACTIVE KITCHEN COUNTER
+       ========================================================================= */
+    let scene, camera, renderer;
+    let kitchenGroup, assemblyPlateGroup, grillCookedPatty = null;
+    let currentNpcGroup = null;
+    let npcState = 'none'; // 'walking_in', 'waiting', 'walking_out', 'none'
+
+    // First Person Kitchen Counter Props
+    let ingredientMeshes3D = [];
+
+    function init3DScene() {
+      const container = document.getElementById('canvas-container');
+
+      // Scene Setup
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x38bdf8); // Sunny day sky
+      scene.fog = new THREE.FogExp2(0x38bdf8, 0.018);
+
+      // Camera positioned INSIDE the food truck kitchen looking OUT window at plaza counter
+      camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(0, 1.6, -0.4); // Eye level inside kitchen
+      camera.lookAt(0, 1.45, 2.5); // Looking towards counter window & plaza
+
+      // WebGL Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+      scene.add(ambientLight);
+
+      const sunLight = new THREE.DirectionalLight(0xfff7ed, 0.9);
+      sunLight.position.set(8, 15, -10);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = 1024;
+      sunLight.shadow.mapSize.height = 1024;
+      scene.add(sunLight);
+
+      // Kitchen Interior Lights
+      const kitchenLight = new THREE.PointLight(0xfef08a, 0.8, 6);
+      kitchenLight.position.set(0, 2.3, 0);
+      scene.add(kitchenLight);
+
+      // Build 3D Plaza Outside
+      buildPlazaEnvironment();
+
+      // Build Food Truck Kitchen Frame & Counter
+      buildKitchenInterior();
+
+      // Assembly Plate Group for stacking ingredients in 3D
+      assemblyPlateGroup = new THREE.Group();
+      assemblyPlateGroup.position.set(0.1, 1.05, 1.0); // Directly on counter top
+      scene.add(assemblyPlateGroup);
+
+      // Window resize
+      window.addEventListener('resize', onWindowResize, false);
+
+      // Start render loop
+      animate();
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    /* --- Plaza Outside Window --- */
+    function buildPlazaEnvironment() {
+      // Plaza Floor Cobblestone
+      const floorGeo = new THREE.PlaneGeometry(50, 50);
+      const floorMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.8 });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = 0;
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      // Green Park Areas
+      const parkMat = new THREE.MeshStandardMaterial({ color: 0x4ade80 });
+      const park1 = new THREE.Mesh(new THREE.BoxGeometry(15, 0.15, 20), parkMat);
+      park1.position.set(-12, 0.08, 10);
+      scene.add(park1);
+
+      const park2 = new THREE.Mesh(new THREE.BoxGeometry(15, 0.15, 20), parkMat);
+      park2.position.set(12, 0.08, 10);
+      scene.add(park2);
+
+      // Plaza Trees
+      createTree(-10, 8);
+      createTree(-12, 14);
+      createTree(10, 8);
+      createTree(12, 14);
+    }
+
+    function createTree(x, z) {
+      const tree = new THREE.Group();
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.25, 0.35, 2.4, 8),
+        new THREE.MeshStandardMaterial({ color: 0x78350f })
+      );
+      trunk.position.y = 1.2;
+      trunk.castShadow = true;
+      tree.add(trunk);
+
+      const foliage = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(1.5, 1),
+        new THREE.MeshStandardMaterial({ color: 0x16a34a, flatShading: true })
+      );
+      foliage.position.y = 3.0;
+      foliage.castShadow = true;
+      tree.add(foliage);
+
+      tree.position.set(x, 0, z);
+      scene.add(tree);
+    }
+
+    /* --- First-Person Food Truck Interior --- */
+    function buildKitchenInterior() {
+      kitchenGroup = new THREE.Group();
+
+      // Stainless Steel Countertop
+      const counterGeo = new THREE.BoxGeometry(2.8, 0.1, 1.2);
+      const counterMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.85, roughness: 0.2 });
+      const counter = new THREE.Mesh(counterGeo, counterMat);
+      counter.position.set(0, 1.0, 1.0);
+      counter.receiveShadow = true;
+      kitchenGroup.add(counter);
+
+      // Food Truck Window Frame
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
+      
+      const frameTop = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.2, 0.1), frameMat);
+      frameTop.position.set(0, 2.3, 1.5);
+      kitchenGroup.add(frameTop);
+
+      const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.4, 0.1), frameMat);
+      frameLeft.position.set(-1.5, 1.6, 1.5);
+      kitchenGroup.add(frameLeft);
+
+      const frameRight = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.4, 0.1), frameMat);
+      frameRight.position.set(1.5, 1.6, 1.5);
+      kitchenGroup.add(frameRight);
+
+      // Grill Box (Left side of counter)
+      const grillBoxGeo = new THREE.BoxGeometry(0.8, 0.12, 0.6);
+      const grillBoxMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9, roughness: 0.3 });
+      const grillBox = new THREE.Mesh(grillBoxGeo, grillBoxMat);
+      grillBox.position.set(-0.8, 1.1, 1.0);
+      kitchenGroup.add(grillBox);
+
+      // Assembly Plate Base
+      const plateGeo = new THREE.CylinderGeometry(0.32, 0.3, 0.03, 24);
+      const plateMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
+      const plate = new THREE.Mesh(plateGeo, plateMat);
+      plate.position.set(0.1, 1.05, 1.0);
+      plate.receiveShadow = true;
+      kitchenGroup.add(plate);
+
+      // Drink Dispenser Machine (Right side of counter)
+      const dispenserBody = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.7, 0.4),
+        new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.7 })
+      );
+      dispenserBody.position.set(0.95, 1.4, 0.95);
+      kitchenGroup.add(dispenserBody);
+
+      // Dispenser Nozzles
+      const nozzle1 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.1, 10), new THREE.MeshStandardMaterial({ color: 0xd97706 }));
+      nozzle1.position.set(0.85, 1.18, 1.1);
+      kitchenGroup.add(nozzle1);
+
+      const nozzle2 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.1, 10), new THREE.MeshStandardMaterial({ color: 0xfacc15 }));
+      nozzle2.position.set(1.05, 1.18, 1.1);
+      kitchenGroup.add(nozzle2);
+
+      scene.add(kitchenGroup);
+    }
+
+    /* --- Procedural 3D Food Meshes --- */
+    function createIngredientMesh(type) {
+      let mesh;
+      switch (type) {
+        case 'bun_bottom': {
+          const geo = new THREE.CylinderGeometry(0.24, 0.23, 0.06, 20);
+          const mat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.6 });
+          mesh = new THREE.Mesh(geo, mat);
+          break;
+        }
+        case 'cooked_patty': {
+          const geo = new THREE.CylinderGeometry(0.24, 0.24, 0.05, 20);
+          const mat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.8 });
+          mesh = new THREE.Mesh(geo, mat);
+          break;
+        }
+        case 'cheese': {
+          const geo = new THREE.BoxGeometry(0.48, 0.02, 0.48);
+          const mat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+          mesh = new THREE.Mesh(geo, mat);
+          break;
+        }
+        case 'salad': {
+          const geo = new THREE.CylinderGeometry(0.25, 0.25, 0.03, 16);
+          const mat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.5 });
+          mesh = new THREE.Mesh(geo, mat);
+          break;
+        }
+        case 'tomato': {
+          const geo = new THREE.CylinderGeometry(0.22, 0.22, 0.03, 16);
+          const mat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3 });
+          mesh = new THREE.Mesh(geo, mat);
+          break;
+        }
+        case 'ketchup': {
+          const geo = new THREE.CylinderGeometry(0.2, 0.2, 0.015, 12);
+          const mat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.2 });
+          mesh = new THREE.Mesh(geo, mat);
+          break;
+        }
+        case 'mustard': {
+          const geo = new THREE.CylinderGeometry(0.19, 0.19, 0.015, 12);
+          const mat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.2 });
+          mesh = new THREE.Mesh(geo, mat);
+          break;
+        }
+        case 'bun_top': {
+          const geo = new THREE.SphereGeometry(0.24, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+          const mat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.6 });
+          mesh = new THREE.Mesh(geo, mat);
+          mesh.scale.y = 0.5;
+          break;
+        }
+        case 'cola': {
+          const geo = new THREE.CylinderGeometry(0.08, 0.07, 0.22, 16);
+          const mat = new THREE.MeshStandardMaterial({ color: 0x7c2d12, transparent: true, opacity: 0.85 });
+          mesh = new THREE.Mesh(geo, mat);
+          mesh.position.set(0.4, 0.1, 0); // Placed next to burger on tray
+          break;
+        }
+        case 'lemonade': {
+          const geo = new THREE.CylinderGeometry(0.08, 0.07, 0.22, 16);
+          const mat = new THREE.MeshStandardMaterial({ color: 0xfde047, transparent: true, opacity: 0.85 });
+          mesh = new THREE.Mesh(geo, mat);
+          mesh.position.set(0.4, 0.1, 0);
+          break;
+        }
+      }
+      if (mesh) mesh.castShadow = true;
+      return mesh;
+    }
+
+    /* --- Procedural Animated Customer NPCs --- */
+    function spawnCustomerNPC() {
+      if (currentNpcGroup) {
+        scene.remove(currentNpcGroup);
+        currentNpcGroup = null;
+      }
+
+      const npc = new THREE.Group();
+
+      const shirtColors = [0xef4444, 0x3b82f6, 0x10b981, 0x8b5cf6, 0xec4899, 0xf97316];
+      const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColors[Math.floor(Math.random() * shirtColors.length)] });
+      const skinMat = new THREE.MeshStandardMaterial({ color: 0xfed7aa, roughness: 0.7 });
+      const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+
+      // Torso
+      const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.25, 0.9, 12), shirtMat);
+      torso.position.y = 1.05;
+      torso.castShadow = true;
+      npc.add(torso);
+
+      // Head
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), skinMat);
+      head.position.y = 1.7;
+      head.castShadow = true;
+      npc.add(head);
+
+      // Legs
+      const legLeft = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.7, 8), pantsMat);
+      legLeft.position.set(-0.15, 0.35, 0);
+      legLeft.name = 'legLeft';
+      npc.add(legLeft);
+
+      const legRight = legLeft.clone();
+      legRight.position.set(0.15, 0.35, 0);
+      legRight.name = 'legRight';
+      npc.add(legRight);
+
+      // Spawn at z = 12 walking towards customer window (0, 0, 2.2)
+      npc.position.set(0, 0, 10);
+      scene.add(npc);
+
+      currentNpcGroup = npc;
+      npcState = 'walking_in';
+
+      // Generate Random Recipe Order
+      generateRandomCustomerOrder();
+    }
+  </script>
+
+  <script>
+    /* =========================================================================
+       4. SPECIFIC RECIPE TICKET & GAMEPLAY LOGIC
+       ========================================================================= */
+
+    // Available Master Recipes
+    const RECIPE_BOOK = [
+      {
+        title: "Classic Cheeseburger",
+        layers: ['bun_bottom', 'cooked_patty', 'cheese', 'bun_top'],
+        side: "cola",
+        basePayout: 15
+      },
+      {
+        title: "Fresh Veggie Stack",
+        layers: ['bun_bottom', 'cooked_patty', 'salad', 'tomato', 'bun_top'],
+        side: "lemonade",
+        basePayout: 18
+      },
+      {
+        title: "Gourmet Ketchup Special",
+        layers: ['bun_bottom', 'cooked_patty', 'cheese', 'ketchup', 'mustard', 'bun_top'],
+        side: "cola",
+        basePayout: 22
+      },
+      {
+        title: "Monster Double Tower",
+        layers: ['bun_bottom', 'cooked_patty', 'cheese', 'cooked_patty', 'salad', 'tomato', 'bun_top'],
+        side: "lemonade",
+        basePayout: 28
+      }
+    ];
+
+    let currentOrder = null;
+    let orderTimerSeconds = 0;
+    let orderTimerInterval = null;
+
+    let currentPlateIngredients = []; // Stack of layer strings
+    let currentPlateSide = null;      // Drink string
+    let isGrillCooking = false;
+    let hasCookedPattyReadyOnGrill = false;
+
+    // Readable Names Dictionary
+    const INGREDIENT_NAMES = {
+      'bun_bottom': '🍞 Bottom Bun',
+      'cooked_patty': '🍖 Cooked Patty',
+      'cheese': '🧀 Cheese',
+      'salad': '🥗 Salad',
+      'tomato': '🍅 Tomato',
+      'ketchup': '🥫 Ketchup',
+      'mustard': '🟡 Mustard',
+      'bun_top': '🍞 Top Bun',
+      'cola': '🥤 Cola',
+      'lemonade': '🍋 Lemonade'
+    };
+
+    function generateRandomCustomerOrder() {
+      const template = RECIPE_BOOK[Math.floor(Math.random() * RECIPE_BOOK.length)];
+      currentOrder = JSON.parse(JSON.stringify(template));
+
+      // Customer name generator
+      const names = ["Alex", "Sam", "Taylor", "Jordan", "Morgan", "Riley", "Casey"];
+      currentOrder.customerName = names[Math.floor(Math.random() * names.length)];
+
+      // Timer duration (adjusted by upgrade)
+      orderTimerSeconds = 35 + getCustomerPatienceBonus();
+
+      updateTicketUI();
+    }
+
+    function startOrderTimer() {
+      if (orderTimerInterval) clearInterval(orderTimerInterval);
+      orderTimerInterval = setInterval(() => {
+        if (npcState === 'waiting' && orderTimerSeconds > 0) {
+          orderTimerSeconds--;
+          document.getElementById('ticket-timer-text').innerText = `${orderTimerSeconds}s`;
+
+          if (orderTimerSeconds <= 5) {
+            document.getElementById('ticket-timer-badge').className = "bg-rose-600 text-white text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1 animate-pulse";
+          }
+
+          if (orderTimerSeconds <= 0) {
+            clearInterval(orderTimerInterval);
+            audioSys.playErrorSound();
+            showNotification('Customer left! Order timed out.');
+            npcState = 'walking_out';
+            clearCurrentPlate();
+          }
+        }
+      }, 1000);
+    }
+
+    function updateTicketUI() {
+      if (!currentOrder || npcState !== 'waiting') {
+        document.getElementById('ticket-customer-name').innerText = "Waiting for customer...";
+        document.getElementById('ticket-recipe-title').innerText = "No order active";
+        document.getElementById('ticket-layers-list').innerHTML = `<span class="text-slate-500 italic text-xs">Customer walking up to window...</span>`;
+        document.getElementById('ticket-sides-text').innerText = "None";
+        document.getElementById('ticket-timer-text').innerText = "--s";
+        return;
+      }
+
+      document.getElementById('ticket-customer-name').innerText = `Customer ${currentOrder.customerName}`;
+      document.getElementById('ticket-recipe-title').innerText = `Order: ${currentOrder.title}`;
+      document.getElementById('ticket-timer-text').innerText = `${orderTimerSeconds}s`;
+      document.getElementById('ticket-timer-badge').className = "bg-slate-800 text-slate-300 text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1";
+
+      // Build layer list DOM (Bottom to Top)
+      const listEl = document.getElementById('ticket-layers-list');
+      listEl.innerHTML = '';
+      currentOrder.layers.forEach((layer, idx) => {
+        const item = document.createElement('div');
+        item.className = "flex items-center gap-2 bg-slate-900/50 px-2 py-1 rounded-lg border border-slate-800 text-slate-200 font-semibold";
+        item.innerHTML = `<span class="text-amber-400 font-black text-[10px]">${idx + 1}.</span> ${INGREDIENT_NAMES[layer] || layer}`;
+        listEl.appendChild(item);
+      });
+
+      document.getElementById('ticket-sides-text').innerText = INGREDIENT_NAMES[currentOrder.side] || "None";
+    }
+
+    // Refresh UI Displays
+    function updateUI() {
+      document.getElementById('cash-amount').innerText = gameState.cash.toFixed(0);
+      document.getElementById('shop-cash-amount').innerText = gameState.cash.toFixed(0);
+
+      // Upgrades text
+      document.getElementById('cost-speed').innerText = `$${getUpgradeCostSpeed()}`;
+      document.getElementById('shop-speed-desc').innerText = `Grill time: ${getCookTime().toFixed(1)}s`;
+
+      document.getElementById('cost-price').innerText = `$${getUpgradeCostPrice()}`;
+      document.getElementById('shop-price-desc').innerText = `Price Boost: +${((getPriceMultiplier() - 1) * 100).toFixed(0)}%`;
+
+      document.getElementById('cost-timer').innerText = `$${getUpgradeCostPatience()}`;
+      document.getElementById('shop-timer-desc').innerText = `Extra Timer: +${getCustomerPatienceBonus()}s`;
+
+      // Render Plate Text Summary
+      if (currentPlateIngredients.length === 0) {
+        document.getElementById('plate-stack-text').innerText = "Empty";
+      } else {
+        const readableStack = currentPlateIngredients.map(i => INGREDIENT_NAMES[i] || i).join(' > ');
+        document.getElementById('plate-stack-text').innerText = readableStack;
+      }
+
+      document.getElementById('plate-side-text').innerText = currentPlateSide ? INGREDIENT_NAMES[currentPlateSide] : "None";
+    }
+
+    /* --- Interactive Cooking Controls --- */
+
+    // 1. Grill Patty
+    document.getElementById('btn-cook-patty').addEventListener('click', () => {
+      audioSys.init();
+      audioSys.playClick();
+
+      if (isGrillCooking || hasCookedPattyReadyOnGrill) return;
+
+      isGrillCooking = true;
+      audioSys.playSizzle();
+
+      document.getElementById('grill-status-badge').innerText = "Cooking...";
+      document.getElementById('grill-status-badge').className = "text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold";
+
+      // Spawn raw red patty on grill in 3D
+      if (grillCookedPatty) scene.remove(grillCookedPatty);
+      const rawGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.05, 20);
+      const rawMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c });
+      grillCookedPatty = new THREE.Mesh(rawGeo, rawMat);
+      grillCookedPatty.position.set(-0.8, 1.18, 1.0);
+      scene.add(grillCookedPatty);
+
+      const progressBar = document.getElementById('grill-progress-bar');
+      const progressFill = document.getElementById('grill-progress-fill');
+      progressBar.classList.remove('hidden');
+      progressFill.style.width = '0%';
+
+      const cookDuration = getCookTime() * 1000;
+      const startTime = Date.now();
+
+      const cookInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(100, (elapsed / cookDuration) * 100);
+        progressFill.style.width = `${pct}%`;
+
+        // Lerp meat color to cooked seared brown
+        if (grillCookedPatty) {
+          const t = pct / 100;
+          grillCookedPatty.material.color.setHSL(0.02, 0.7, 0.4 - t * 0.25);
+        }
+
+        if (pct >= 100) {
+          clearInterval(cookInterval);
+          isGrillCooking = false;
+          hasCookedPattyReadyOnGrill = true;
+          progressBar.classList.add('hidden');
+          audioSys.playDing();
+
+          document.getElementById('grill-status-badge').innerText = "Patty Ready!";
+          document.getElementById('grill-status-badge').className = "text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold animate-pulse";
+        }
+      }, 50);
+    });
+
+    // 2. Add Ingredients to Assembly Plate
+    function addLayerToPlate(layerType) {
+      audioSys.init();
+      audioSys.playClick();
+
+      if (layerType === 'cooked_patty') {
+        if (!hasCookedPattyReadyOnGrill) {
+          showNotification('Cook a patty on the grill first!');
+          return;
+        }
+        hasCookedPattyReadyOnGrill = false;
+        if (grillCookedPatty) {
+          scene.remove(grillCookedPatty);
+          grillCookedPatty = null;
+        }
+        document.getElementById('grill-status-badge').innerText = "Ready";
+        document.getElementById('grill-status-badge').className = "text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full";
+      }
+
+      currentPlateIngredients.push(layerType);
+      renderPlate3DStack();
+      updateUI();
+    }
+
+    document.getElementById('btn-add-bun-bottom').addEventListener('click', () => addLayerToPlate('bun_bottom'));
+    document.getElementById('btn-add-cooked-patty').addEventListener('click', () => addLayerToPlate('cooked_patty'));
+    document.getElementById('btn-add-cheese').addEventListener('click', () => addLayerToPlate('cheese'));
+    document.getElementById('btn-add-salad').addEventListener('click', () => addLayerToPlate('salad'));
+    document.getElementById('btn-add-tomato').addEventListener('click', () => addLayerToPlate('tomato'));
+    document.getElementById('btn-add-ketchup').addEventListener('click', () => addLayerToPlate('ketchup'));
+    document.getElementById('btn-add-mustard').addEventListener('click', () => addLayerToPlate('mustard'));
+    document.getElementById('btn-add-bun-top').addEventListener('click', () => addLayerToPlate('bun_top'));
+
+    // Drinks
+    document.getElementById('btn-add-cola').addEventListener('click', () => {
+      audioSys.init();
+      audioSys.playClick();
+      currentPlateSide = 'cola';
+      renderPlate3DStack();
+      updateUI();
+    });
+
+    document.getElementById('btn-add-lemonade').addEventListener('click', () => {
+      audioSys.init();
+      audioSys.playClick();
+      currentPlateSide = 'lemonade';
+      renderPlate3DStack();
+      updateUI();
+    });
+
+    // Clear Plate
+    document.getElementById('btn-clear-plate').addEventListener('click', () => {
+      audioSys.init();
+      audioSys.playClick();
+      clearCurrentPlate();
+      showNotification('Plate emptied.');
+    });
+
+    function clearCurrentPlate() {
+      currentPlateIngredients = [];
+      currentPlateSide = null;
+      assemblyPlateGroup.clear();
+      updateUI();
+    }
+
+    // Render 3D Stack on Kitchen Assembly Counter
+    function renderPlate3DStack() {
+      assemblyPlateGroup.clear();
+
+      let currentY = 0;
+      currentPlateIngredients.forEach((layerType) => {
+        const mesh = createIngredientMesh(layerType);
+        mesh.position.y = currentY;
+        assemblyPlateGroup.add(mesh);
+
+        if (layerType === 'cheese' || layerType === 'salad' || layerType === 'tomato') currentY += 0.03;
+        else if (layerType === 'ketchup' || layerType === 'mustard') currentY += 0.015;
+        else currentY += 0.06;
+      });
+
+      // Render Drink Mesh beside burger
+      if (currentPlateSide) {
+        const drinkMesh = createIngredientMesh(currentPlateSide);
+        assemblyPlateGroup.add(drinkMesh);
+      }
+    }
+
+    // Serve Order & Validation Logic
+    document.getElementById('btn-serve-order').addEventListener('click', () => {
+      audioSys.init();
+      audioSys.playClick();
+
+      if (npcState !== 'waiting' || !currentOrder) {
+        showNotification('No customer waiting at window!');
+        return;
+      }
+
+      if (currentPlateIngredients.length === 0) {
+        showNotification('Plate is empty! Assemble burger order first.');
+        return;
+      }
+
+      // Exact Layer Order Match Check
+      const targetLayers = currentOrder.layers;
+      const isBurgerMatch = JSON.stringify(currentPlateIngredients) === JSON.stringify(targetLayers);
+      const isSideMatch = currentPlateSide === currentOrder.side;
+
+      if (isBurgerMatch && isSideMatch) {
+        // Success
+        const payout = Math.round(currentOrder.basePayout * getPriceMultiplier());
+        gameState.cash += payout;
+        gameState.servedCount++;
+        saveState();
+        updateUI();
+
+        audioSys.playCashChime();
+        showFloatingMoney(`+$${payout}`);
+
+        if (orderTimerInterval) clearInterval(orderTimerInterval);
+
+        // Customer leaves happy
+        npcState = 'walking_out';
+        clearCurrentPlate();
+        updateTicketUI();
+
+      } else {
+        // Incorrect Order Penalty
+        audioSys.playErrorSound();
+        if (!isBurgerMatch && !isSideMatch) {
+          showNotification('Wrong burger layers AND wrong drink!');
+        } else if (!isBurgerMatch) {
+          showNotification('Incorrect burger layer order! Check recipe list.');
+        } else {
+          showNotification('Wrong drink side order!');
+        }
+      }
+    });
+
+    function showFloatingMoney(text) {
+      const el = document.createElement('div');
+      el.className = 'floating-money text-2xl font-black';
+      el.innerText = text;
+      el.style.left = '50%';
+      el.style.top = '40%';
+      document.body.appendChild(el);
+
+      setTimeout(() => el.remove(), 1800);
+    }
+
+    function showNotification(msg) {
+      const el = document.createElement('div');
+      el.className = 'fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 glass-panel px-4 py-2 rounded-2xl text-xs font-bold text-rose-300 border border-rose-500/40 shadow-2xl transition-all duration-300';
+      el.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1.5"></i> ${msg}`;
+      document.body.appendChild(el);
+
+      setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
+      }, 2500);
+    }
+  </script>
+
+  <script>
+    /* =========================================================================
+       5. MODAL CONTROL & UPGRADE PURCHASES
+       ========================================================================= */
+
+    const modalShop = document.getElementById('modal-shop');
+    document.getElementById('btn-open-shop').addEventListener('click', () => {
+      audioSys.init();
+      audioSys.playClick();
+      updateUI();
+      modalShop.classList.remove('opacity-0', 'pointer-events-none');
+    });
+
+    document.getElementById('btn-close-shop').addEventListener('click', () => {
+      audioSys.playClick();
+      modalShop.classList.add('opacity-0', 'pointer-events-none');
+    });
+
+    const modalSettings = document.getElementById('modal-settings');
+    document.getElementById('btn-open-settings').addEventListener('click', () => {
+      audioSys.init();
+      audioSys.playClick();
+      modalSettings.classList.remove('opacity-0', 'pointer-events-none');
+    });
+
+    document.getElementById('btn-close-settings').addEventListener('click', () => {
+      audioSys.playClick();
+      modalSettings.classList.add('opacity-0', 'pointer-events-none');
+    });
+
+    // Upgrade 1: Speed
+    document.getElementById('btn-upgrade-speed').addEventListener('click', () => {
+      const cost = getUpgradeCostSpeed();
+      if (gameState.cash >= cost) {
+        gameState.cash -= cost;
+        gameState.cookSpeedLevel++;
+        saveState();
+        audioSys.playCashChime();
+        updateUI();
+      } else {
+        showNotification('Not enough cash!');
+      }
+    });
+
+    // Upgrade 2: Price Multiplier
+    document.getElementById('btn-upgrade-price').addEventListener('click', () => {
+      const cost = getUpgradeCostPrice();
+      if (gameState.cash >= cost) {
+        gameState.cash -= cost;
+        gameState.priceLevel++;
+        saveState();
+        audioSys.playCashChime();
+        updateUI();
+      } else {
+        showNotification('Not enough cash!');
+      }
+    });
+
+    // Upgrade 3: Customer Patience Timer
+    document.getElementById('btn-upgrade-timer').addEventListener('click', () => {
+      const cost = getUpgradeCostPatience();
+      if (gameState.cash >= cost) {
+        gameState.cash -= cost;
+        gameState.patienceLevel++;
+        saveState();
+        audioSys.playCashChime();
+        updateUI();
+      } else {
+        showNotification('Not enough cash!');
+      }
+    });
+
+    // Audio Controls
+    document.getElementById('toggle-music').addEventListener('change', (e) => {
+      audioSys.init();
+      audioSys.toggleMusic(e.target.checked);
+    });
+
+    document.getElementById('slider-volume').addEventListener('input', (e) => {
+      audioSys.init();
+      const val = parseInt(e.target.value) / 100;
+      audioSys.setVolume(val);
+      document.getElementById('volume-val-text').innerText = `${e.target.value}%`;
+    });
+
+    // Reset Progress
+    document.getElementById('btn-reset-game').addEventListener('click', () => {
+      resetState();
+      showNotification('Game progress reset!');
+      modalSettings.classList.add('opacity-0', 'pointer-events-none');
+    });
+  </script>
+
+  <script>
+    /* =========================================================================
+       6. MAIN ANIMATION LOOP & NPC STATE MACHINE
+       ========================================================================= */
+
+    let clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      // Customer NPC State Machine
+      if (currentNpcGroup) {
+        if (npcState === 'walking_in') {
+          // Walk towards counter window (z = 2.2)
+          currentNpcGroup.position.z -= delta * 2.8;
+
+          const legL = currentNpcGroup.getObjectByName('legLeft');
+          const legR = currentNpcGroup.getObjectByName('legRight');
+          if (legL && legR) {
+            legL.rotation.x = Math.sin(elapsed * 10) * 0.5;
+            legR.rotation.x = -Math.sin(elapsed * 10) * 0.5;
+          }
+
+          if (currentNpcGroup.position.z <= 2.2) {
+            currentNpcGroup.position.z = 2.2;
+            npcState = 'waiting';
+            if (legL) legL.rotation.x = 0;
+            if (legR) legR.rotation.x = 0;
+
+            startOrderTimer();
+            updateTicketUI();
+          }
+        } else if (npcState === 'walking_out') {
+          currentNpcGroup.rotation.y = Math.PI;
+          currentNpcGroup.position.z += delta * 3.2;
+
+          const legL = currentNpcGroup.getObjectByName('legLeft');
+          const legR = currentNpcGroup.getObjectByName('legRight');
+          if (legL && legR) {
+            legL.rotation.x = Math.sin(elapsed * 12) * 0.5;
+            legR.rotation.x = -Math.sin(elapsed * 12) * 0.5;
+          }
+
+          if (currentNpcGroup.position.z >= 10) {
+            npcState = 'none';
+            setTimeout(spawnCustomerNPC, 1200);
+          }
+        }
+      } else {
+        if (npcState === 'none') {
+          spawnCustomerNPC();
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    window.onload = () => {
+      init3DScene();
+      updateUI();
+    };
+  </script>
+</body>
+</html>
+
+<!-- EXIT BUTTON FOR GAME PAGE (TOP-MIDDLE) -->
+<style>
+  .hub-exit-btn {
+    position: fixed;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%); /* Centers the button horizontally */
+    z-index: 999999;
+    background: #ff4757;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    padding: 10px 22px;
+    border-radius: 25px;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 71, 87, 0.5);
+    transition: all 0.2s ease;
+  }
+  .hub-exit-btn:hover {
+    background: #ff2e43;
+    transform: translateX(-50%) scale(1.08); /* Maintains centering on hover */
+  }
+</style>
+
+<button class="hub-exit-btn" onclick="exitToHub()">✖ Exit Game</button>
+
+<script>
+  function exitToHub() {
+    // Closes the current game tab
+    window.close();
+    // Fallback if browser blocks closing: Redirect back to hub
+    setTimeout(() => {
+      window.location.href = 'game_hub.html';
+    }, 100);
+  }
+</script>

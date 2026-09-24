@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Flappy Magma Fish</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    
+    * {
+      touch-action: manipulation;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Press Start 2P', monospace;
+      background-color: #080203;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+    }
+
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .retro-glow {
+      text-shadow: 0 0 8px #ff4500, 0 0 16px #ff0000, 2px 2px 0px #000;
+    }
+
+    .volcano-box {
+      background-color: #1a0808;
+      border: 4px solid #ff4500;
+      box-shadow: inset -4px -4px 0px #5c0f00, inset 4px 4px 0px #ff8800;
+    }
+  </style>
+</head>
+<body class="w-full h-full flex items-center justify-center bg-black">
+
+  <div id="game-wrapper" class="relative w-full h-full max-w-md max-h-[100dvh] sm:max-h-[820px] aspect-[9/16] shadow-[0_0_50px_rgba(255,68,0,0.5)] sm:border-4 border-orange-600 sm:rounded-2xl overflow-hidden flex flex-col items-center justify-center bg-zinc-950">
+    
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+
+    <!-- Settings Gear Button -->
+    <button id="settings-btn" class="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 min-w-[44px] min-h-[44px] p-2 bg-gradient-to-br from-red-600 to-orange-500 rounded-lg border-2 border-yellow-300 shadow-lg hover:scale-105 active:scale-95 transition-all text-lg sm:text-xl flex items-center justify-center text-white">
+      ⚙️
+    </button>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden absolute inset-0 z-30 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center">
+      <div class="volcano-box p-6 rounded-xl w-full max-w-xs flex flex-col items-center">
+        <h2 class="text-lg sm:text-xl text-yellow-400 mb-6 font-bold tracking-wider retro-glow">SETTINGS</h2>
+        
+        <!-- Sound Toggle -->
+        <div class="w-full flex justify-between items-center mb-5 bg-red-950/80 p-3 rounded-lg border-2 border-red-800">
+          <span class="text-[10px] sm:text-xs text-orange-200 font-bold">SOUND & BGM</span>
+          <button id="music-toggle-btn" class="min-w-[54px] min-h-[38px] px-3 py-2 bg-green-600 hover:bg-green-500 border-2 border-green-300 text-[10px] sm:text-xs text-white rounded font-bold transition-all shadow">
+            ON
+          </button>
+        </div>
+
+        <!-- Volume Slider -->
+        <div class="w-full flex flex-col gap-2 mb-6 bg-red-950/80 p-3 rounded-lg border-2 border-red-800 text-left">
+          <div class="flex justify-between text-[10px] sm:text-xs text-orange-200 font-bold">
+            <span>VOLUME</span>
+            <span id="volume-val-txt">70%</span>
+          </div>
+          <input type="range" id="volume-slider" min="0" max="100" value="70" class="w-full accent-orange-500 cursor-pointer h-4 rounded bg-zinc-900">
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="w-full flex flex-col gap-3">
+          <button id="close-settings-btn" class="min-h-[44px] w-full py-3 bg-gradient-to-r from-orange-500 to-yellow-500 border-2 border-yellow-200 rounded text-[10px] sm:text-xs text-black font-extrabold active:scale-95 transition-all shadow">
+            RESUME
+          </button>
+          <button id="exit-btn" class="min-h-[44px] w-full py-3 bg-gradient-to-r from-red-800 to-red-600 border-2 border-red-300 rounded text-[10px] sm:text-xs text-white font-extrabold active:scale-95 transition-all shadow">
+            EXIT TO GAME HUB
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Start Screen Overlay -->
+    <div id="start-screen" class="absolute inset-0 z-10 flex flex-col items-center justify-between py-12 px-4 text-center">
+      <div class="mt-6">
+        <h1 class="text-3xl sm:text-4xl text-orange-500 font-extrabold retro-glow tracking-wider animate-pulse">FLAPPY MAGMA</h1>
+        <h2 class="text-2xl sm:text-3xl text-yellow-400 font-bold tracking-widest mt-1">FISH</h2>
+      </div>
+
+      <div class="flex flex-col items-center gap-3">
+        <!-- Pixel Magma Fish Icon Preview -->
+        <div class="w-20 h-12 relative my-2 flex items-center justify-center">
+          <div class="w-14 h-8 bg-orange-600 border-2 border-yellow-400 rounded-full flex items-center justify-end px-1 relative shadow-[0_0_15px_#ff4500]">
+            <div class="w-3.5 h-3.5 bg-yellow-300 border border-black rounded-full absolute top-1 left-7 flex items-center justify-center">
+              <div class="w-1 h-1 bg-black rounded-full"></div>
+            </div>
+            <div class="w-4 h-2 bg-yellow-500 border border-red-900 rounded-r-md translate-x-2"></div>
+            <div class="w-4 h-5 bg-red-700 border border-orange-400 rounded-l-full absolute top-1.5 -left-3"></div>
+          </div>
+        </div>
+
+        <div class="volcano-box px-4 py-3 rounded-lg text-[10px] sm:text-xs text-orange-200 font-bold space-y-1">
+          <p class="text-yellow-300">TAP / SPACE TO SWIM UP</p>
+          <p class="text-orange-400 text-[9px]">DODGE THE MAGMA PIPES</p>
+        </div>
+      </div>
+
+      <div id="start-prompt" class="cursor-pointer min-h-[48px] px-6 py-4 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 border-4 border-yellow-300 text-white rounded-xl text-xs sm:text-sm font-bold tracking-wider active:scale-95 transition-all shadow-[0_0_20px_rgba(255,100,0,0.8)]">
+        TAP TO PLAY
+      </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameover-screen" class="hidden absolute inset-0 z-10 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center">
+      <h2 class="text-2xl sm:text-3xl text-red-500 font-extrabold mb-4 retro-glow">GAME OVER</h2>
+
+      <!-- Scorecard -->
+      <div class="volcano-box w-full max-w-xs p-5 rounded-xl border-4 border-orange-600 mb-6 relative">
+        <div class="flex justify-between items-center mb-4">
+          <!-- Medal Display -->
+          <div class="flex flex-col items-center justify-center">
+            <span class="text-[9px] text-orange-300 font-bold mb-1">MEDAL</span>
+            <div id="medal-icon" class="w-12 h-12 rounded-full border-2 border-yellow-400 flex items-center justify-center text-xl font-bold bg-amber-950">
+              -
+            </div>
+          </div>
+
+          <div class="flex flex-col items-end gap-2">
+            <div class="text-right">
+              <span class="text-[9px] text-orange-300 font-bold block">SCORE</span>
+              <span id="final-score" class="text-lg text-yellow-400 font-extrabold">0</span>
+            </div>
+            <div class="text-right">
+              <span class="text-[9px] text-orange-300 font-bold block">BEST</span>
+              <span id="final-highscore" class="text-lg text-orange-400 font-extrabold">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="w-full max-w-xs flex flex-col gap-3">
+        <button id="restart-btn" class="min-h-[44px] w-full py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-400 hover:to-yellow-400 border-2 border-yellow-200 rounded-xl text-xs text-black font-extrabold active:scale-95 transition-all shadow-lg">
+          SWIM AGAIN
+        </button>
+        <button id="gameover-exit-btn" class="min-h-[44px] w-full py-3 bg-red-800 hover:bg-red-700 border-2 border-red-400 rounded-xl text-xs text-white font-extrabold active:scale-95 transition-all shadow">
+          EXIT TO GAME HUB
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+        this.volume = 0.7;
+        this.bgmTimer = null;
+        this.noteIndex = 0;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playSwim() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(540, this.ctx.currentTime + 0.09);
+        gain.gain.setValueAtTime(0.25 * this.volume, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.09);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.09);
+      }
+
+      playScore() {
+        if (!this.enabled || !this.ctx) return;
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc1.type = 'square';
+        osc2.type = 'square';
+
+        osc1.frequency.setValueAtTime(587.33, this.ctx.currentTime); // D5
+        osc1.frequency.setValueAtTime(783.99, this.ctx.currentTime + 0.08); // G5
+
+        osc2.frequency.setValueAtTime(783.99, this.ctx.currentTime);
+        osc2.frequency.setValueAtTime(1046.50, this.ctx.currentTime + 0.08); // C6
+
+        gain.gain.setValueAtTime(0.12 * this.volume, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc1.start();
+        osc2.start();
+        osc1.stop(this.ctx.currentTime + 0.2);
+        osc2.stop(this.ctx.currentTime + 0.2);
+      }
+
+      playHit() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.4 * this.volume, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+      }
+
+      playDie() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(450, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.3 * this.volume, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.4);
+      }
+
+      startBGM() {
+        if (this.bgmTimer) return;
+        const notes = [146.83, 146.83, 174.61, 146.83, 196.00, 174.61, 146.83, 130.81];
+        this.noteIndex = 0;
+        
+        this.bgmTimer = setInterval(() => {
+          if (!this.enabled || !this.ctx || this.ctx.state !== 'running') return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(notes[this.noteIndex % notes.length], this.ctx.currentTime);
+          gain.gain.setValueAtTime(0.035 * this.volume, this.ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.005, this.ctx.currentTime + 0.18);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.18);
+          this.noteIndex++;
+        }, 200);
+      }
+
+      stopBGM() {
+        if (this.bgmTimer) {
+          clearInterval(this.bgmTimer);
+          this.bgmTimer = null;
+        }
+      }
+    }
+
+    const sound = new SoundEngine();
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const wrapper = document.getElementById('game-wrapper');
+
+    // Virtual Game Dimensions
+    const V_WIDTH = 288;
+    const V_HEIGHT = 512;
+    const GROUND_HEIGHT = 100;
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = wrapper.getBoundingClientRect();
+
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      ctx.imageSmoothingEnabled = false;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 100));
+
+    const GRAVITY = 0.36;
+    const SWIM_IMPULSE = -6.4;
+    const PIPE_SPEED = 2.1;
+    const PIPE_SPAWN_RATE = 88;
+    const PIPE_GAP = 105;
+
+    let gameState = 'START';
+    let score = 0;
+    let highScore = localStorage.getItem('flappy_magma_fish_hi') || 0;
+    let frameCount = 0;
+    let groundOffset = 0;
+    let screenShake = 0;
+
+    const magmaFish = {
+      x: 65,
+      y: (V_HEIGHT - GROUND_HEIGHT) / 2,
+      vy: 0,
+      width: 32,
+      height: 22,
+      rotation: 0,
+      finFrame: 0,
+      reset() {
+        this.y = (V_HEIGHT - GROUND_HEIGHT) / 2;
+        this.vy = 0;
+        this.rotation = 0;
+        this.finFrame = 0;
+      }
+    };
+
+    let pipes = [];
+    let particles = [];
+
+    function drawPixelMagmaFish(x, y, rotation, finFrame) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+
+      const p = 2; // Pixel grid multiplier
+
+      // Tail Flame / Fin
+      const finColor = finFrame === 0 ? '#ff3300' : (finFrame === 1 ? '#ff8800' : '#ffcc00');
+      ctx.fillStyle = finColor;
+      ctx.fillRect(-10 * p, -3 * p, 4 * p, 6 * p);
+      ctx.fillRect(-12 * p, -5 * p, 4 * p, 10 * p);
+
+      // Charcoal / Basalt Outer Back & Tail Accent
+      ctx.fillStyle = '#260a0a';
+      ctx.fillRect(-8 * p, -4 * p, 3 * p, 8 * p);
+
+      // Main Magma Body (Molten Orange & Red)
+      ctx.fillStyle = '#ff4500';
+      ctx.fillRect(-6 * p, -5 * p, 12 * p, 10 * p);
+      ctx.fillRect(-7 * p, -4 * p, 14 * p, 8 * p);
+
+      // Bright Molten Gold Belly Scales
+      ctx.fillStyle = '#ffaa00';
+      ctx.fillRect(-4 * p, 1 * p, 8 * p, 3 * p);
+      ctx.fillRect(-2 * p, -2 * p, 6 * p, 2 * p);
+
+      // Charcoal Dark Scales Accent
+      ctx.fillStyle = '#3a0d0d';
+      ctx.fillRect(-3 * p, -4 * p, 2 * p, 2 * p);
+      ctx.fillRect(0 * p, -3 * p, 2 * p, 2 * p);
+
+      // Glowing Eye
+      ctx.fillStyle = '#ffff00';
+      ctx.fillRect(2 * p, -4 * p, 4 * p, 4 * p);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(4 * p, -3 * p, 2 * p, 2 * p);
+
+      // Fiery Lips / Snout
+      ctx.fillStyle = '#ff2200';
+      ctx.fillRect(5 * p, 0 * p, 3 * p, 3 * p);
+
+      // Dorsal Fin (Top Flame Fin)
+      ctx.fillStyle = '#ff6600';
+      ctx.fillRect(-2 * p, -7 * p, 5 * p, 2 * p);
+      ctx.fillStyle = '#ffaa00';
+      ctx.fillRect(0 * p, -6 * p, 3 * p, 1 * p);
+
+      // Pectoral Side Fin
+      ctx.fillStyle = '#ff3300';
+      if (finFrame === 0) {
+        ctx.fillRect(-2 * p, 0 * p, 3 * p, 4 * p);
+      } else {
+        ctx.fillRect(-2 * p, 2 * p, 3 * p, 4 * p);
+      }
+
+      ctx.restore();
+    }
+
+    function drawMagmaPipe(x, topHeight, bottomY) {
+      const pWidth = 52;
+      const capHeight = 24;
+
+      ctx.save();
+
+      // Dark Basalt & Glowing Lava Pipe Gradient
+      const pipeGrad = ctx.createLinearGradient(x, 0, x + pWidth, 0);
+      pipeGrad.addColorStop(0, '#1c0505');
+      pipeGrad.addColorStop(0.25, '#661100');
+      pipeGrad.addColorStop(0.5, '#ff4500');
+      pipeGrad.addColorStop(0.75, '#661100');
+      pipeGrad.addColorStop(1, '#1a0404');
+
+      ctx.fillStyle = pipeGrad;
+      ctx.strokeStyle = '#ff6600';
+      ctx.lineWidth = 2;
+
+      // TOP PIPE
+      ctx.fillRect(x, 0, pWidth, topHeight);
+      ctx.strokeRect(x, 0, pWidth, topHeight);
+      // Top Cap
+      ctx.fillRect(x - 3, topHeight - capHeight, pWidth + 6, capHeight);
+      ctx.strokeRect(x - 3, topHeight - capHeight, pWidth + 6, capHeight);
+
+      // BOTTOM PIPE
+      ctx.fillRect(x, bottomY, pWidth, V_HEIGHT - GROUND_HEIGHT - bottomY);
+      ctx.strokeRect(x, bottomY, pWidth, V_HEIGHT - GROUND_HEIGHT - bottomY);
+      // Bottom Cap
+      ctx.fillRect(x - 3, bottomY, pWidth + 6, capHeight);
+      ctx.strokeRect(x - 3, bottomY, pWidth + 6, capHeight);
+
+      // Glowing Inner Core Pulse
+      const glow = Math.sin(frameCount * 0.1) * 0.2 + 0.8;
+      ctx.fillStyle = `rgba(255, 200, 0, ${glow})`;
+      if (topHeight - capHeight > 0) {
+        ctx.fillRect(x + 22, 0, 8, topHeight - capHeight);
+      }
+      if (V_HEIGHT - GROUND_HEIGHT - (bottomY + capHeight) > 0) {
+        ctx.fillRect(x + 22, bottomY + capHeight, 8, V_HEIGHT - GROUND_HEIGHT - (bottomY + capHeight));
+      }
+
+      ctx.restore();
+    }
+
+    function drawVolcanoBackground() {
+      // Sky Gradient
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, V_HEIGHT);
+      skyGrad.addColorStop(0, '#0f0203');
+      skyGrad.addColorStop(0.5, '#2b0707');
+      skyGrad.addColorStop(1, '#5e0f00');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT - GROUND_HEIGHT);
+
+      // Distant Volcano Silhouettes
+      ctx.fillStyle = '#170304';
+      ctx.beginPath();
+      ctx.moveTo(-10, V_HEIGHT - GROUND_HEIGHT);
+      ctx.lineTo(60, V_HEIGHT - GROUND_HEIGHT - 130);
+      ctx.lineTo(130, V_HEIGHT - GROUND_HEIGHT - 70);
+      ctx.lineTo(220, V_HEIGHT - GROUND_HEIGHT - 160);
+      ctx.lineTo(V_WIDTH + 10, V_HEIGHT - GROUND_HEIGHT);
+      ctx.fill();
+
+      // Glowing Crater Tops
+      ctx.fillStyle = '#ff3300';
+      ctx.fillRect(56, V_HEIGHT - GROUND_HEIGHT - 130, 8, 3);
+      ctx.fillRect(215, V_HEIGHT - GROUND_HEIGHT - 160, 10, 4);
+
+      // Atmosphere Ash/Ember Particles
+      if (Math.random() < 0.3) {
+        particles.push({
+          x: Math.random() * V_WIDTH,
+          y: V_HEIGHT - GROUND_HEIGHT,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: -Math.random() * 2 - 0.5,
+          life: 40 + Math.random() * 30,
+          size: 1 + Math.random() * 2,
+          color: '#ff8800'
+        });
+      }
+    }
+
+    function drawGroundLava() {
+      const gY = V_HEIGHT - GROUND_HEIGHT;
+
+      // Basalt Ground Base
+      ctx.fillStyle = '#1c0808';
+      ctx.fillRect(0, gY, V_WIDTH, GROUND_HEIGHT);
+
+      // Top Lava Surface
+      ctx.fillStyle = '#ff3300';
+      ctx.fillRect(0, gY, V_WIDTH, 14);
+      ctx.fillStyle = '#ff9900';
+      ctx.fillRect(0, gY + 10, V_WIDTH, 4);
+
+      // Moving Molten Lava Texture Waves
+      ctx.fillStyle = '#ffcc00';
+      for (let x = -groundOffset; x < V_WIDTH + 16; x += 16) {
+        ctx.beginPath();
+        ctx.moveTo(x, gY);
+        ctx.lineTo(x + 8, gY + 10);
+        ctx.lineTo(x + 4, gY + 10);
+        ctx.lineTo(x - 4, gY);
+        ctx.fill();
+      }
+
+      // Border Line
+      ctx.strokeStyle = '#ff5500';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, gY);
+      ctx.lineTo(V_WIDTH, gY);
+      ctx.stroke();
+    }
+
+    function spawnFishEmberTrail(x, y) {
+      for (let i = 0; i < 3; i++) {
+        particles.push({
+          x: x - 12,
+          y: y + (Math.random() - 0.5) * 8,
+          vx: -Math.random() * 2 - 1,
+          vy: (Math.random() - 0.5) * 2,
+          life: 20 + Math.random() * 15,
+          size: 2 + Math.random() * 3,
+          color: Math.random() < 0.5 ? '#ff4500' : '#ffcc00'
+        });
+      }
+    }
+
+    function updateGame() {
+      // Update Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const pt = particles[i];
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.life--;
+        if (pt.life <= 0) particles.splice(i, 1);
+      }
+
+      if (gameState === 'START') {
+        frameCount++;
+        magmaFish.y = (V_HEIGHT - GROUND_HEIGHT) / 2 + Math.sin(frameCount * 0.1) * 6;
+        magmaFish.finFrame = Math.floor(frameCount / 6) % 3;
+        groundOffset = (groundOffset + PIPE_SPEED) % 16;
+        return;
+      }
+
+      if (gameState === 'GAMEOVER') {
+        if (magmaFish.y < V_HEIGHT - GROUND_HEIGHT - magmaFish.height / 2) {
+          magmaFish.vy += GRAVITY * 1.2;
+          magmaFish.y += magmaFish.vy;
+          magmaFish.rotation = Math.min(Math.PI / 2, magmaFish.rotation + 0.1);
+        }
+        if (screenShake > 0) screenShake--;
+        return;
+      }
+
+      frameCount++;
+      groundOffset = (groundOffset + PIPE_SPEED) % 16;
+
+      // Fish Physics
+      magmaFish.vy += GRAVITY;
+      magmaFish.y += magmaFish.vy;
+
+      // Smooth Tilt Angle
+      if (magmaFish.vy < 0) {
+        magmaFish.rotation = -0.38;
+        magmaFish.finFrame = Math.floor(frameCount / 4) % 3;
+        spawnFishEmberTrail(magmaFish.x, magmaFish.y);
+      } else {
+        magmaFish.rotation = Math.min(Math.PI / 2, magmaFish.rotation + 0.05);
+        magmaFish.finFrame = 1;
+      }
+
+      // Spawn Pipes
+      if (frameCount % PIPE_SPAWN_RATE === 0) {
+        const minTop = 40;
+        const maxTop = V_HEIGHT - GROUND_HEIGHT - PIPE_GAP - 40;
+        const topHeight = minTop + Math.random() * (maxTop - minTop);
+        pipes.push({
+          x: V_WIDTH,
+          top: topHeight,
+          bottom: topHeight + PIPE_GAP,
+          passed: false
+        });
+      }
+
+      // Update Pipes & Collision Checking
+      for (let i = pipes.length - 1; i >= 0; i--) {
+        const p = pipes[i];
+        p.x -= PIPE_SPEED;
+
+        const pWidth = 52;
+        const bPadding = 4;
+
+        if (magmaFish.x + magmaFish.width / 2 - bPadding > p.x && 
+            magmaFish.x - magmaFish.width / 2 + bPadding < p.x + pWidth) {
+          
+          if (magmaFish.y - magmaFish.height / 2 + bPadding < p.top || 
+              magmaFish.y + magmaFish.height / 2 - bPadding > p.bottom) {
+            triggerHitGameOver();
+            return;
+          }
+        }
+
+        // Pass Pipe & Score
+        if (!p.passed && p.x + pWidth < magmaFish.x) {
+          p.passed = true;
+          score++;
+          sound.playScore();
+        }
+
+        if (p.x < -60) pipes.splice(i, 1);
+      }
+
+      // Lava Floor & Ceiling Collision
+      if (magmaFish.y + magmaFish.height / 2 >= V_HEIGHT - GROUND_HEIGHT) {
+        magmaFish.y = V_HEIGHT - GROUND_HEIGHT - magmaFish.height / 2;
+        triggerHitGameOver();
+      } else if (magmaFish.y - magmaFish.height / 2 <= 0) {
+        magmaFish.y = magmaFish.height / 2;
+        magmaFish.vy = 0;
+      }
+
+      if (screenShake > 0) screenShake--;
+    }
+
+    function triggerHitGameOver() {
+      if (gameState === 'GAMEOVER') return;
+      gameState = 'GAMEOVER';
+      sound.playHit();
+      screenShake = 15;
+      setTimeout(() => sound.playDie(), 150);
+
+      // Explosive Ember Burst on Collision
+      for (let i = 0; i < 25; i++) {
+        particles.push({
+          x: magmaFish.x,
+          y: magmaFish.y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          life: 30 + Math.random() * 20,
+          size: 2 + Math.random() * 4,
+          color: Math.random() < 0.5 ? '#ff3300' : '#ffff00'
+        });
+      }
+
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('flappy_magma_fish_hi', highScore);
+      }
+
+      document.getElementById('final-score').innerText = score;
+      document.getElementById('final-highscore').innerText = highScore;
+
+      // Assign Magma Medal
+      const medalIcon = document.getElementById('medal-icon');
+      if (score >= 40) {
+        medalIcon.innerText = '💎'; // Platinum
+        medalIcon.className = 'w-12 h-12 rounded-full border-2 border-cyan-400 flex items-center justify-center text-xl font-bold bg-cyan-950 shadow-[0_0_12px_#00ffff]';
+      } else if (score >= 30) {
+        medalIcon.innerText = '🥇'; // Gold
+        medalIcon.className = 'w-12 h-12 rounded-full border-2 border-yellow-300 flex items-center justify-center text-xl font-bold bg-yellow-950 shadow-[0_0_12px_#ffff00]';
+      } else if (score >= 20) {
+        medalIcon.innerText = '🥈'; // Silver
+        medalIcon.className = 'w-12 h-12 rounded-full border-2 border-slate-300 flex items-center justify-center text-xl font-bold bg-slate-900 shadow-[0_0_12px_#ffffff]';
+      } else if (score >= 10) {
+        medalIcon.innerText = '🥉'; // Bronze
+        medalIcon.className = 'w-12 h-12 rounded-full border-2 border-amber-600 flex items-center justify-center text-xl font-bold bg-amber-950 shadow-[0_0_12px_#ff8800]';
+      } else {
+        medalIcon.innerText = ' - ';
+        medalIcon.className = 'w-12 h-12 rounded-full border-2 border-red-900 flex items-center justify-center text-xl font-bold bg-amber-950 text-orange-400';
+      }
+
+      document.getElementById('gameover-screen').classList.remove('hidden');
+    }
+
+    function renderGame() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = wrapper.getBoundingClientRect();
+
+      ctx.save();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const sx = (rect.width / V_WIDTH) * dpr;
+      const sy = (rect.height / V_HEIGHT) * dpr;
+      ctx.scale(sx, sy);
+
+      if (screenShake > 0) {
+        ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+      }
+
+      // Background
+      drawVolcanoBackground();
+
+      // Pipes
+      pipes.forEach(p => drawMagmaPipe(p.x, p.top, p.bottom));
+
+      // Particles
+      particles.forEach(pt => {
+        ctx.fillStyle = pt.color;
+        ctx.fillRect(pt.x, pt.y, pt.size, pt.size);
+      });
+
+      // Floor Lava Surface
+      drawGroundLava();
+
+      // Player Magma Fish
+      drawPixelMagmaFish(magmaFish.x, magmaFish.y, magmaFish.rotation, magmaFish.finFrame);
+
+      // HUD Score Counter
+      if (gameState === 'PLAYING') {
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.font = '24px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.strokeText(`${score}`, V_WIDTH / 2, 50);
+        ctx.fillText(`${score}`, V_WIDTH / 2, 50);
+      }
+
+      ctx.restore();
+    }
+
+    function gameLoop() {
+      updateGame();
+      renderGame();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function handleSwim() {
+      sound.init();
+
+      if (gameState === 'START') {
+        gameState = 'PLAYING';
+        document.getElementById('start-screen').classList.add('hidden');
+        sound.startBGM();
+        magmaFish.reset();
+        score = 0;
+        pipes = [];
+      }
+
+      if (gameState === 'PLAYING') {
+        magmaFish.vy = SWIM_IMPULSE;
+        sound.playSwim();
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        handleSwim();
+      }
+    });
+
+    function onTouchOrClick(e) {
+      if (e.target.closest('#settings-btn') || e.target.closest('#settings-modal') || e.target.closest('#gameover-screen')) {
+        return;
+      }
+      e.preventDefault();
+      handleSwim();
+    }
+
+    canvas.addEventListener('touchstart', onTouchOrClick, { passive: false });
+    canvas.addEventListener('mousedown', onTouchOrClick);
+    document.getElementById('start-prompt').addEventListener('click', handleSwim);
+
+    function restartGame() {
+      document.getElementById('gameover-screen').classList.add('hidden');
+      gameState = 'PLAYING';
+      magmaFish.reset();
+      score = 0;
+      pipes = [];
+      frameCount = 0;
+      sound.startBGM();
+    }
+
+    document.getElementById('restart-btn').addEventListener('click', restartGame);
+
+    function exitToHub() {
+      window.location.href = 'game_hub.html';
+    }
+
+    document.getElementById('exit-btn').addEventListener('click', exitToHub);
+    document.getElementById('gameover-exit-btn').addEventListener('click', exitToHub);
+
+    // Settings Modal
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeSettingsBtn = document.getElementById('close-settings-btn');
+    const musicToggleBtn = document.getElementById('music-toggle-btn');
+    const volumeSlider = document.getElementById('volume-slider');
+    const volumeValTxt = document.getElementById('volume-val-txt');
+
+    let prePauseState = 'START';
+
+    settingsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sound.init();
+      if (gameState !== 'PAUSED') {
+        prePauseState = gameState;
+        gameState = 'PAUSED';
+      }
+      settingsModal.classList.remove('hidden');
+    });
+
+    closeSettingsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      settingsModal.classList.add('hidden');
+      gameState = prePauseState === 'PLAYING' ? 'PLAYING' : prePauseState;
+    });
+
+    musicToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sound.enabled = !sound.enabled;
+      musicToggleBtn.innerText = sound.enabled ? 'ON' : 'OFF';
+      musicToggleBtn.className = sound.enabled 
+        ? 'min-w-[54px] min-h-[38px] px-3 py-2 bg-green-600 hover:bg-green-500 border-2 border-green-300 text-[10px] sm:text-xs text-white rounded font-bold transition-all shadow'
+        : 'min-w-[54px] min-h-[38px] px-3 py-2 bg-red-600 hover:bg-red-500 border-2 border-red-300 text-[10px] sm:text-xs text-white rounded font-bold transition-all shadow';
+      
+      if (!sound.enabled) {
+        sound.stopBGM();
+      } else if (gameState === 'PLAYING') {
+        sound.startBGM();
+      }
+    });
+
+    volumeSlider.addEventListener('input', (e) => {
+      const val = e.target.value;
+      sound.volume = val / 100;
+      volumeValTxt.innerText = `${val}%`;
+    });
+
+    // Start initialization
+    resizeCanvas();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>

@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lightning vs Wind Pong (Raijin vs Fujin)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #030712;
+            color: #ffffff;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .lightning-glow {
+            text-shadow: 0 0 12px #38bdf8, 0 0 24px #0284c7;
+        }
+
+        .wind-glow {
+            text-shadow: 0 0 12px #f1f5f9, 0 0 24px #94a3b8;
+        }
+
+        canvas {
+            touch-action: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="w-full h-full flex flex-col justify-between p-2 md:p-4 bg-gradient-to-b from-gray-950 via-slate-900 to-black select-none">
+
+    <header class="w-full max-w-6xl mx-auto flex flex-col items-center z-10 shrink-0">
+        <div class="w-full flex justify-between items-center px-2">
+            <!-- Empty Spacer for Balance -->
+            <div class="w-10"></div>
+
+            <div class="text-center">
+                <h1 class="text-lg sm:text-2xl md:text-3xl font-black tracking-widest font-orbitron uppercase text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-teal-200 to-slate-100">
+                    Lightning vs Wind Pong
+                </h1>
+                <p class="text-[10px] sm:text-xs tracking-widest text-slate-400 font-semibold mt-0.5">
+                    MAKASIAR ADAM // LIGHTNING KINGDOM VS WIND KINGDOM
+                </p>
+            </div>
+
+            <!-- Settings Button -->
+            <button id="open-settings-btn" class="w-10 h-10 glass-panel rounded-full flex items-center justify-center text-slate-200 hover:text-white hover:border-sky-400 transition-all cursor-pointer shadow-lg active:scale-95">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Scoreboard and VS Badge -->
+        <div class="w-full flex items-center justify-between mt-2 px-2 sm:px-6 max-w-4xl">
+            <!-- Left Score (Lightning) -->
+            <div class="glass-panel px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl flex items-center gap-2 sm:gap-4 border-l-4 border-sky-400 shadow-lg min-w-[100px] sm:min-w-[150px]">
+                <div class="flex flex-col">
+                    <span class="text-[9px] sm:text-xs tracking-wider text-sky-400 font-bold uppercase">Lightning</span>
+                    <span id="score-left" class="text-2xl sm:text-4xl md:text-5xl font-black font-orbitron lightning-glow text-sky-300">0</span>
+                </div>
+            </div>
+
+            <!-- Game Mode / Controls HUD Info -->
+            <div class="flex flex-col items-center px-2">
+                <span class="text-xs sm:text-sm font-orbitron font-bold tracking-wider text-slate-300">VS</span>
+                <span class="text-[9px] sm:text-[11px] text-slate-400 font-semibold uppercase tracking-wider">First to 10</span>
+            </div>
+
+            <!-- Right Score (Wind) -->
+            <div class="glass-panel px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl flex items-center justify-end gap-2 sm:gap-4 border-r-4 border-slate-200 shadow-lg min-w-[100px] sm:min-w-[150px] text-right">
+                <div class="flex flex-col">
+                    <span class="text-[9px] sm:text-xs tracking-wider text-slate-300 font-bold uppercase">Wind</span>
+                    <span id="score-right" class="text-2xl sm:text-4xl md:text-5xl font-black font-orbitron wind-glow text-slate-100">0</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative w-full max-w-6xl mx-auto flex-1 flex items-center justify-center min-h-0 my-2">
+        <div id="canvas-container" class="relative w-full h-full rounded-2xl overflow-hidden border border-slate-800 glass-panel shadow-2xl flex items-center justify-center">
+            <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+
+            <!-- Start / Pause / Game Over Modal Overlay -->
+            <div id="game-overlay" class="absolute inset-0 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center z-20 gap-3 p-4">
+                <h2 id="overlay-title" class="text-2xl sm:text-4xl md:text-5xl font-black font-orbitron tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-white to-slate-200 text-center">
+                    RAIJIN VS FUJIN
+                </h2>
+                <p id="overlay-desc" class="text-slate-300 text-xs sm:text-sm md:text-base max-w-md text-center">
+                    Drag paddles on-screen or use keyboard controls (<span class="text-sky-400">W/S</span> & <span class="text-slate-300">Up/Down</span>). Multi-touch support for 2 players!
+                </p>
+                <button id="start-btn" class="mt-2 px-8 py-3 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-orbitron font-bold text-base sm:text-lg tracking-wider shadow-lg shadow-sky-500/40 transition-all transform hover:scale-105 active:scale-95 cursor-pointer">
+                    START MATCH
+                </button>
+            </div>
+
+            <!-- Settings Modal -->
+            <div id="settings-overlay" class="absolute inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-30 hidden p-4">
+                <div class="glass-panel w-full max-w-md rounded-2xl p-6 border border-slate-700 flex flex-col gap-6 shadow-2xl">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h3 class="text-xl font-bold font-orbitron text-sky-400 tracking-wider">SETTINGS</h3>
+                        <button id="close-settings-btn" class="text-slate-400 hover:text-white transition-colors text-2xl font-bold">&times;</button>
+                    </div>
+
+                    <!-- Music Toggle -->
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-slate-200 text-sm tracking-wide">Background Music</span>
+                        <button id="toggle-music-btn" class="px-4 py-1.5 rounded-full bg-sky-500 text-white font-bold text-xs tracking-wider transition-all shadow-md">
+                            ON
+                        </button>
+                    </div>
+
+                    <!-- Volume Control -->
+                    <div class="flex flex-col gap-2">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-200 text-sm tracking-wide">Sound Volume</span>
+                            <span id="volume-val" class="text-sky-400 font-mono text-xs font-bold">80%</span>
+                        </div>
+                        <input id="volume-slider" type="range" min="0" max="100" value="80" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400">
+                    </div>
+
+                    <!-- Navigation to Hub -->
+                    <div class="pt-2 border-t border-slate-800 flex flex-col gap-3">
+                        <button id="exit-hub-btn" class="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-orbitron font-bold text-sm tracking-wider transition-all shadow-lg shadow-red-600/30 active:scale-95 cursor-pointer flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            EXIT TO GAME HUB
+                        </button>
+                        <button id="resume-btn" class="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs tracking-wider transition-all">
+                            RESUME GAME
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer Controls Bar -->
+    <footer class="w-full max-w-6xl mx-auto flex items-center justify-between gap-2 px-3 py-1 z-10 shrink-0 text-xs text-slate-400 glass-panel rounded-xl">
+        <div class="flex items-center gap-1.5 sm:gap-2">
+            <span class="text-sky-400 font-bold uppercase text-[10px] sm:text-xs">Lightning</span>
+            <span class="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-200 text-[10px] sm:text-xs hidden sm:inline">W / S</span>
+            <span class="text-[10px] sm:text-xs text-slate-400">Drag Left Side</span>
+        </div>
+        <div class="text-[10px] sm:text-xs text-slate-500 font-mono hidden md:block">
+            TOUCH & MOUSE DRAGGABLE PADDLES
+        </div>
+        <div class="flex items-center gap-1.5 sm:gap-2">
+            <span class="text-[10px] sm:text-xs text-slate-400">Drag Right Side</span>
+            <span class="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-200 text-[10px] sm:text-xs hidden sm:inline">↑ / ↓</span>
+            <span class="text-slate-200 font-bold uppercase text-[10px] sm:text-xs">Wind</span>
+        </div>
+    </footer>
+
+    <script>
+        // Web Audio Synthesizer for SFX and Dynamic BGM
+        class AudioEngine {
+            constructor() {
+                this.ctx = null;
+                this.masterGain = null;
+                this.musicGain = null;
+                this.sfxGain = null;
+                this.isMusicOn = true;
+                this.volume = 0.8;
+                this.musicStep = 0;
+                this.musicInterval = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    this.masterGain = this.ctx.createGain();
+                    this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+                    this.masterGain.connect(this.ctx.destination);
+
+                    this.sfxGain = this.ctx.createGain();
+                    this.sfxGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
+                    this.sfxGain.connect(this.masterGain);
+
+                    this.musicGain = this.ctx.createGain();
+                    this.musicGain.gain.setValueAtTime(this.isMusicOn ? 0.35 : 0, this.ctx.currentTime);
+                    this.musicGain.connect(this.masterGain);
+
+                    this.startMusicLoop();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            setVolume(val) {
+                this.volume = clamp(val, 0, 1);
+                if (this.masterGain && this.ctx) {
+                    this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+                }
+            }
+
+            toggleMusic() {
+                this.isMusicOn = !this.isMusicOn;
+                if (this.musicGain && this.ctx) {
+                    this.musicGain.gain.setValueAtTime(this.isMusicOn ? 0.35 : 0, this.ctx.currentTime);
+                }
+                return this.isMusicOn;
+            }
+
+            playHit(freq, type = 'sine', duration = 0.1) {
+                if (!this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(freq * 0.3, this.ctx.currentTime + duration);
+
+                    gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+
+                    osc.connect(gain);
+                    gain.connect(this.sfxGain);
+
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {}
+            }
+
+            playLightningHit() {
+                this.playHit(750, 'sawtooth', 0.15);
+            }
+
+            playWindHit() {
+                this.playHit(450, 'triangle', 0.2);
+            }
+
+            playScore() {
+                this.playHit(220, 'square', 0.4);
+            }
+
+            // Procedural Synthesized Synthwave BGM Loop
+            startMusicLoop() {
+                if (this.musicInterval) return;
+
+                const bassNotes = [110, 110, 130.81, 130.81, 98, 98, 146.83, 146.83]; // A2, C3, G2, D3
+                const melodyNotes = [220, 261.63, 329.63, 392, 293.66, 329.63, 261.63, 220];
+
+                this.musicInterval = setInterval(() => {
+                    if (!this.ctx || !this.isMusicOn) return;
+
+                    const now = this.ctx.currentTime;
+                    const step = this.musicStep % 8;
+
+                    // Bass Synth Line
+                    const bassOsc = this.ctx.createOscillator();
+                    const bassGain = this.ctx.createGain();
+                    bassOsc.type = 'sawtooth';
+                    bassOsc.frequency.setValueAtTime(bassNotes[step], now);
+
+                    bassGain.gain.setValueAtTime(0.2, now);
+                    bassGain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+
+                    bassOsc.connect(bassGain);
+                    bassGain.connect(this.musicGain);
+
+                    bassOsc.start(now);
+                    bassOsc.stop(now + 0.2);
+
+                    // Arpeggiated High Lead Note
+                    if (step % 2 === 0) {
+                        const leadOsc = this.ctx.createOscillator();
+                        const leadGain = this.ctx.createGain();
+                        leadOsc.type = 'sine';
+                        leadOsc.frequency.setValueAtTime(melodyNotes[step], now);
+
+                        leadGain.gain.setValueAtTime(0.12, now);
+                        leadGain.gain.exponentialRampToValueAtTime(0.005, now + 0.25);
+
+                        leadOsc.connect(leadGain);
+                        leadGain.connect(this.musicGain);
+
+                        leadOsc.start(now);
+                        leadOsc.stop(now + 0.28);
+                    }
+
+                    this.musicStep++;
+                }, 160); // 187.5 BPM rhythm
+            }
+        }
+
+        const audio = new AudioEngine();
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // Internal Game Resolution Virtual Coordinates (1000 x 600 fixed logical units)
+        const V_WIDTH = 1000;
+        const V_HEIGHT = 600;
+
+        let scale = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        let W = V_WIDTH;
+        let H = V_HEIGHT;
+
+        let gameRunning = false;
+        let isPaused = false;
+        let scoreLeft = 0;
+        let scoreRight = 0;
+        const WINNING_SCORE = 10;
+
+        // Key states
+        const keys = {
+            w: false,
+            s: false,
+            up: false,
+            down: false
+        };
+
+        // Paddle Objects
+        const leftPaddle = {
+            x: 25,
+            y: V_HEIGHT / 2 - 50,
+            w: 16,
+            h: 100,
+            speed: 550,
+            isDragging: false,
+            dragTouchId: null
+        };
+
+        const rightPaddle = {
+            x: V_WIDTH - 41,
+            y: V_HEIGHT / 2 - 50,
+            w: 16,
+            h: 100,
+            speed: 550,
+            isDragging: false,
+            dragTouchId: null
+        };
+
+        // Ball Object
+        const ball = {
+            x: V_WIDTH / 2,
+            y: V_HEIGHT / 2,
+            radius: 10,
+            vx: 380,
+            vy: 0,
+            speed: 380,
+            mode: "lightning"
+        };
+
+        const particles = [];
+        const shockwaves = [];
+        let flashColor = null;
+        let flashTimer = 0;
+
+        function clamp(val, min, max) {
+            return Math.min(Math.max(val, min), max);
+        }
+
+        function resizeCanvas() {
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+
+            const scaleX = canvas.width / V_WIDTH;
+            const scaleY = canvas.height / V_HEIGHT;
+            scale = Math.min(scaleX, scaleY);
+
+            offsetX = (canvas.width - V_WIDTH * scale) / 2;
+            offsetY = (canvas.height - V_HEIGHT * scale) / 2;
+        }
+
+        function getVirtualPos(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = (clientX - rect.left) * window.devicePixelRatio;
+            const canvasY = (clientY - rect.top) * window.devicePixelRatio;
+
+            const vx = (canvasX - offsetX) / scale;
+            const vy = (canvasY - offsetY) / scale;
+
+            return { x: vx, y: vy };
+        }
+
+        // Keyboard Event Listeners
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'w' || e.key === 'W') keys.w = true;
+            if (e.key === 's' || e.key === 'S') keys.s = true;
+            if (e.key === 'ArrowUp') keys.up = true;
+            if (e.key === 'ArrowDown') keys.down = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'w' || e.key === 'W') keys.w = false;
+            if (e.key === 's' || e.key === 'S') keys.s = false;
+            if (e.key === 'ArrowUp') keys.up = false;
+            if (e.key === 'ArrowDown') keys.down = false;
+        });
+
+        // Touch & Drag Handling
+        function handlePointerStart(id, clientX, clientY) {
+            if (isPaused) return;
+            const pos = getVirtualPos(clientX, clientY);
+
+            if (pos.x < V_WIDTH / 2) {
+                leftPaddle.isDragging = true;
+                leftPaddle.dragTouchId = id;
+                leftPaddle.y = clamp(pos.y - leftPaddle.h / 2, 18, V_HEIGHT - leftPaddle.h - 18);
+            } else {
+                rightPaddle.isDragging = true;
+                rightPaddle.dragTouchId = id;
+                rightPaddle.y = clamp(pos.y - rightPaddle.h / 2, 18, V_HEIGHT - rightPaddle.h - 18);
+            }
+        }
+
+        function handlePointerMove(id, clientX, clientY) {
+            if (isPaused) return;
+            const pos = getVirtualPos(clientX, clientY);
+
+            if (leftPaddle.isDragging && leftPaddle.dragTouchId === id) {
+                leftPaddle.y = clamp(pos.y - leftPaddle.h / 2, 18, V_HEIGHT - leftPaddle.h - 18);
+            }
+            if (rightPaddle.isDragging && rightPaddle.dragTouchId === id) {
+                rightPaddle.y = clamp(pos.y - rightPaddle.h / 2, 18, V_HEIGHT - rightPaddle.h - 18);
+            }
+        }
+
+        function handlePointerEnd(id) {
+            if (leftPaddle.dragTouchId === id) {
+                leftPaddle.isDragging = false;
+                leftPaddle.dragTouchId = null;
+            }
+            if (rightPaddle.dragTouchId === id) {
+                rightPaddle.isDragging = false;
+                rightPaddle.dragTouchId = null;
+            }
+        }
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            audio.init();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                handlePointerStart(t.identifier, t.clientX, t.clientY);
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                handlePointerMove(t.identifier, t.clientX, t.clientY);
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                handlePointerEnd(e.changedTouches[i].identifier);
+            }
+        }, { passive: false });
+
+        let mouseIsDown = false;
+        canvas.addEventListener('mousedown', (e) => {
+            audio.init();
+            mouseIsDown = true;
+            handlePointerStart('mouse', e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (mouseIsDown) {
+                handlePointerMove('mouse', e.clientX, e.clientY);
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            mouseIsDown = false;
+            handlePointerEnd('mouse');
+        });
+
+        function emitPaddleAura(paddle, type, dt) {
+            if (Math.random() < 0.6) {
+                const isLightning = type === "lightning";
+                particles.push({
+                    x: paddle.x + (isLightning ? paddle.w : 0),
+                    y: paddle.y + Math.random() * paddle.h,
+                    vx: (Math.random() - 0.5) * (isLightning ? 70 : 30),
+                    vy: (Math.random() - 0.5) * 60,
+                    life: 0.35,
+                    maxLife: 0.35,
+                    color: isLightning ? "#38bdf8" : "#f1f5f9",
+                    size: Math.random() * 3.5 + 1.5,
+                    type: type
+                });
+            }
+        }
+
+        function spawnRadialBurst(x, y, count, mode, multiplier) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const spd = (Math.random() * 240 + 80) * multiplier;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * spd,
+                    vy: Math.sin(angle) * spd,
+                    life: 0.45,
+                    maxLife: 0.45,
+                    color: mode === "lightning" ? "#00d2ff" : "#e2e8f0",
+                    size: Math.random() * 5 + 2,
+                    type: mode
+                });
+            }
+        }
+
+        function spawnShockwave(x, y, mode) {
+            shockwaves.push({
+                x: x,
+                y: y,
+                radius: 10,
+                maxRadius: 80,
+                color: mode === "lightning" ? "rgba(56, 189, 248, 0.85)" : "rgba(241, 245, 249, 0.85)",
+                lineWidth: 7
+            });
+        }
+
+        function setFlash(mode) {
+            flashColor = mode === "lightning" ? "rgba(56, 189, 248, 0.2)" : "rgba(241, 245, 249, 0.2)";
+            flashTimer = 0.1;
+        }
+
+        function updatePaddles(dt) {
+            if (keys.w) leftPaddle.y -= leftPaddle.speed * dt;
+            if (keys.s) leftPaddle.y += leftPaddle.speed * dt;
+            if (keys.up) rightPaddle.y -= rightPaddle.speed * dt;
+            if (keys.down) rightPaddle.y += rightPaddle.speed * dt;
+
+            leftPaddle.y = clamp(leftPaddle.y, 18, H - leftPaddle.h - 18);
+            rightPaddle.y = clamp(rightPaddle.y, 18, H - rightPaddle.h - 18);
+
+            emitPaddleAura(leftPaddle, "lightning", dt);
+            emitPaddleAura(rightPaddle, "wind", dt);
+        }
+
+        function reflectFromPaddle(paddle, side) {
+            const center = paddle.y + paddle.h / 2;
+            const offset = (ball.y - center) / (paddle.h / 2);
+            const angle = offset * 1.05;
+            ball.speed = Math.min(ball.speed * 1.05, 950);
+            const dir = side === "left" ? 1 : -1;
+            ball.vx = Math.cos(angle) * ball.speed * dir;
+            ball.vy = Math.sin(angle) * ball.speed;
+            ball.mode = side === "left" ? "lightning" : "wind";
+            spawnRadialBurst(ball.x, ball.y, 26, ball.mode, 1.35);
+            spawnShockwave(ball.x, ball.y, ball.mode);
+            setFlash(ball.mode);
+
+            if (side === "left") audio.playLightningHit();
+            else audio.playWindHit();
+        }
+
+        function resetBall(direction) {
+            ball.x = V_WIDTH / 2;
+            ball.y = V_HEIGHT / 2;
+            ball.speed = 380;
+            const angle = (Math.random() - 0.5) * 0.6;
+            ball.vx = Math.cos(angle) * ball.speed * direction;
+            ball.vy = Math.sin(angle) * ball.speed;
+            ball.mode = direction === 1 ? "lightning" : "wind";
+        }
+
+        function updateGame(dt) {
+            if (!gameRunning || isPaused) return;
+
+            updatePaddles(dt);
+
+            ball.x += ball.vx * dt;
+            ball.y += ball.vy * dt;
+
+            // Top / Bottom Wall Bouncing
+            if (ball.y - ball.radius <= 12) {
+                ball.y = 12 + ball.radius;
+                ball.vy *= -1;
+                audio.playHit(300, 'sine', 0.05);
+            } else if (ball.y + ball.radius >= V_HEIGHT - 12) {
+                ball.y = V_HEIGHT - 12 - ball.radius;
+                ball.vy *= -1;
+                audio.playHit(300, 'sine', 0.05);
+            }
+
+            // Left Paddle Collision
+            if (ball.x - ball.radius <= leftPaddle.x + leftPaddle.w &&
+                ball.x - ball.radius >= leftPaddle.x - 5 &&
+                ball.y >= leftPaddle.y && ball.y <= leftPaddle.y + leftPaddle.h && ball.vx < 0) {
+                ball.x = leftPaddle.x + leftPaddle.w + ball.radius;
+                reflectFromPaddle(leftPaddle, "left");
+            }
+
+            // Right Paddle Collision
+            if (ball.x + ball.radius >= rightPaddle.x &&
+                ball.x + ball.radius <= rightPaddle.x + rightPaddle.w + 5 &&
+                ball.y >= rightPaddle.y && ball.y <= rightPaddle.y + rightPaddle.h && ball.vx > 0) {
+                ball.x = rightPaddle.x - ball.radius;
+                reflectFromPaddle(rightPaddle, "right");
+            }
+
+            // Scoring
+            if (ball.x < 0) {
+                scoreRight++;
+                document.getElementById('score-right').innerText = scoreRight;
+                audio.playScore();
+                checkGameOver();
+                resetBall(1);
+            } else if (ball.x > V_WIDTH) {
+                scoreLeft++;
+                document.getElementById('score-left').innerText = scoreLeft;
+                audio.playScore();
+                checkGameOver();
+                resetBall(-1);
+            }
+
+            // Particles
+            if (Math.random() < 0.85) {
+                particles.push({
+                    x: ball.x,
+                    y: ball.y,
+                    vx: (Math.random() - 0.5) * 30 - ball.vx * 0.05,
+                    vy: (Math.random() - 0.5) * 30 - ball.vy * 0.05,
+                    life: 0.3,
+                    maxLife: 0.3,
+                    color: ball.mode === "lightning" ? "#38bdf8" : "#f1f5f9",
+                    size: Math.random() * 4 + 2,
+                    type: ball.mode
+                });
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = shockwaves.length - 1; i >= 0; i--) {
+                const sw = shockwaves[i];
+                sw.radius += dt * 220;
+                sw.lineWidth *= 0.92;
+                if (sw.radius >= sw.maxRadius) shockwaves.splice(i, 1);
+            }
+
+            if (flashTimer > 0) flashTimer -= dt;
+        }
+
+        function checkGameOver() {
+            if (scoreLeft >= WINNING_SCORE || scoreRight >= WINNING_SCORE) {
+                gameRunning = false;
+                const winner = scoreLeft >= WINNING_SCORE ? "LIGHTNING KINGDOM" : "WIND KINGDOM";
+                document.getElementById('overlay-title').innerText = `${winner} VICTORY!`;
+                document.getElementById('overlay-desc').innerText = `Final Score: ${scoreLeft} - ${scoreRight}`;
+                document.getElementById('start-btn').innerText = "RESTART MATCH";
+                document.getElementById('game-overlay').classList.remove('hidden');
+            }
+        }
+
+        function render() {
+            ctx.save();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(scale, scale);
+
+            const bgGradient = ctx.createRadialGradient(V_WIDTH / 2, V_HEIGHT / 2, 50, V_WIDTH / 2, V_HEIGHT / 2, V_WIDTH / 1.2);
+            bgGradient.addColorStop(0, "#111c30");
+            bgGradient.addColorStop(1, "#070c17");
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            if (flashTimer > 0 && flashColor) {
+                ctx.fillStyle = flashColor;
+                ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+            }
+
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(V_WIDTH / 2, 0);
+            ctx.lineTo(V_WIDTH / 2, V_HEIGHT);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            shockwaves.forEach(sw => {
+                ctx.strokeStyle = sw.color;
+                ctx.lineWidth = sw.lineWidth;
+                ctx.beginPath();
+                ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+
+            ctx.shadowColor = "#38bdf8";
+            ctx.shadowBlur = 18;
+            ctx.fillStyle = "#38bdf8";
+            ctx.beginPath();
+            ctx.roundRect(leftPaddle.x, leftPaddle.y, leftPaddle.w, leftPaddle.h, 6);
+            ctx.fill();
+
+            ctx.shadowColor = "#ffffff";
+            ctx.shadowBlur = 18;
+            ctx.fillStyle = "#f1f5f9";
+            ctx.beginPath();
+            ctx.roundRect(rightPaddle.x, rightPaddle.y, rightPaddle.w, rightPaddle.h, 6);
+            ctx.fill();
+
+            particles.forEach(p => {
+                const alpha = p.life / p.maxLife;
+                ctx.fillStyle = p.color;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = p.type === "lightning" ? 10 : 5;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1.0;
+
+            const isLightning = ball.mode === "lightning";
+            ctx.shadowColor = isLightning ? "#38bdf8" : "#ffffff";
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = isLightning ? "#00d2ff" : "#ffffff";
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        let lastTime = performance.now();
+        function gameLoop(now) {
+            const dt = Math.min((now - lastTime) / 1000, 0.1);
+            lastTime = now;
+
+            updateGame(dt);
+            render();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        const settingsOverlay = document.getElementById('settings-overlay');
+        const openSettingsBtn = document.getElementById('open-settings-btn');
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+        const resumeBtn = document.getElementById('resume-btn');
+        const toggleMusicBtn = document.getElementById('toggle-music-btn');
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumeVal = document.getElementById('volume-val');
+        const exitHubBtn = document.getElementById('exit-hub-btn');
+
+        function openSettings() {
+            audio.init();
+            isPaused = true;
+            settingsOverlay.classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            isPaused = false;
+            settingsOverlay.classList.add('hidden');
+        }
+
+        openSettingsBtn.addEventListener('click', openSettings);
+        closeSettingsBtn.addEventListener('click', closeSettings);
+        resumeBtn.addEventListener('click', closeSettings);
+
+        toggleMusicBtn.addEventListener('click', () => {
+            audio.init();
+            const isOn = audio.toggleMusic();
+            toggleMusicBtn.innerText = isOn ? 'ON' : 'OFF';
+            toggleMusicBtn.className = `px-4 py-1.5 rounded-full font-bold text-xs tracking-wider transition-all shadow-md ${
+                isOn ? 'bg-sky-500 text-white' : 'bg-slate-700 text-slate-400'
+            }`;
+        });
+
+        volumeSlider.addEventListener('input', (e) => {
+            audio.init();
+            const val = e.target.value;
+            volumeVal.innerText = `${val}%`;
+            audio.setVolume(val / 100);
+        });
+
+        exitHubBtn.addEventListener('click', () => {
+            window.location.href = 'game_hub.html';
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            audio.init();
+            scoreLeft = 0;
+            scoreRight = 0;
+            document.getElementById('score-left').innerText = "0";
+            document.getElementById('score-right').innerText = "0";
+            resetBall(Math.random() > 0.5 ? 1 : -1);
+            gameRunning = true;
+            isPaused = false;
+            document.getElementById('game-overlay').classList.add('hidden');
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+
+        window.onload = () => {
+            resizeCanvas();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
