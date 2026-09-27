@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full w-full select-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>3D Takoyaki Simulator - Ultimate Yatai Edition</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@600;800;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- GSAP Animation Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #0c0a09;
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            color: #f3f4f6;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            outline: none;
+        }
+        .wood-panel {
+            background: linear-gradient(135deg, #2a1810 0%, #170d08 100%);
+            border: 1.5px solid #52311f;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 8px 25px rgba(0,0,0,0.6);
+        }
+        .glass-card {
+            background: rgba(18, 13, 10, 0.92);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 180, 100, 0.25);
+        }
+        .tool-btn {
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            min-height: 50px;
+        }
+        .tool-btn.active {
+            transform: scale(1.08) translateY(-3px);
+            border-color: #f59e0b;
+            background: linear-gradient(180deg, rgba(217, 119, 6, 0.6) 0%, rgba(15, 10, 5, 0.95) 100%);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
+        }
+        .quick-action-btn {
+            transition: all 0.15s ease-out;
+        }
+        .quick-action-btn:active {
+            transform: scale(0.95);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .pulse-glowing {
+            animation: pulse-glow-anim 1.2s infinite alternate ease-in-out;
+        }
+        @keyframes pulse-glow-anim {
+            0% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.5), inset 0 0 8px rgba(245, 158, 11, 0.3); transform: scale(1); }
+            100% { box-shadow: 0 0 30px rgba(245, 158, 11, 1), inset 0 0 20px rgba(255, 230, 150, 0.7); transform: scale(1.04); }
+        }
+        .serve-btn-pulse {
+            animation: serve-pulse-anim 1.0s infinite alternate ease-in-out;
+        }
+        @keyframes serve-pulse-anim {
+            0% { transform: scale(1); box-shadow: 0 0 12px rgba(220, 38, 38, 0.6); }
+            100% { transform: scale(1.08); box-shadow: 0 0 28px rgba(239, 68, 68, 1); }
+        }
+        .shop-tab-btn.active {
+            background-color: #f59e0b;
+            color: #000;
+        }
+    </style>
+</head>
+<body class="w-full h-full relative overflow-hidden select-none">
+
+    <!-- 3D WebGL Canvas Container -->
+    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+    <!-- Floating 3D Serve Badge -->
+    <div id="floating-serve-badge" class="hidden absolute z-20 pointer-events-auto transform -translate-x-1/2 -translate-y-1/2 cursor-pointer" onclick="serveOrder()">
+        <button class="serve-btn-pulse bg-gradient-to-r from-red-600 via-amber-500 to-red-600 hover:from-red-500 hover:to-amber-400 text-white font-black text-xs sm:text-sm px-4 py-2 rounded-full border-2 border-yellow-300 shadow-2xl flex items-center space-x-2">
+            <i class="fa-solid fa-bell text-yellow-200 animate-bounce"></i>
+            <span>SERVE TAKOYAKI 🍱</span>
+        </button>
+    </div>
+
+    <!-- UI Overlay Layer -->
+    <div id="ui-layer" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-2 sm:p-4 pb-safe">
+
+        <!-- Top Navigation Header with Integrated Tip Banner & Menu Buttons -->
+        <div class="flex flex-col gap-2 w-full max-w-5xl mx-auto pointer-events-auto">
+            
+            <!-- Sticky Active Tool Guidance Banner (TOP) -->
+            <div id="active-tool-banner" class="glass-card rounded-2xl sm:rounded-full px-3 sm:px-6 py-2 flex items-center justify-between shadow-2xl border-amber-500/40">
+                <div class="flex items-center space-x-2.5 sm:space-x-3.5">
+                    <div id="banner-icon" class="text-lg sm:text-2xl text-amber-400 shrink-0 w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-amber-950/80 flex items-center justify-center border border-amber-500/30">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <div>
+                        <h4 id="banner-title" class="text-xs sm:text-sm font-black text-amber-300 uppercase tracking-wide leading-tight">Smart Assist Enabled</h4>
+                        <p id="banner-desc" class="text-[10px] sm:text-xs text-gray-300 font-medium leading-tight">Tap any mold to pour, add octopus, flip, or plate automatically!</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Quick Actions (Shop, Settings, Serve, Exit) -->
+                <div class="flex items-center space-x-1.5 sm:space-x-2">
+                    <button onclick="openShopModal()" class="bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/50 p-2 sm:px-3 sm:py-1.5 rounded-full text-xs font-bold transition-all flex items-center space-x-1">
+                        <i class="fa-solid fa-cart-shopping text-yellow-400"></i>
+                        <span class="hidden sm:inline">Shop</span>
+                    </button>
+
+                    <button onclick="openSettingsModal()" class="bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/50 p-2 sm:px-3 sm:py-1.5 rounded-full text-xs font-bold transition-all flex items-center space-x-1">
+                        <i class="fa-solid fa-gear text-amber-300"></i>
+                        <span class="hidden sm:inline">Settings</span>
+                    </button>
+
+                    <button id="top-serve-btn" onclick="serveOrder()" class="serve-btn-pulse bg-gradient-to-r from-red-600 to-amber-600 text-white px-2.5 sm:px-4 py-1.5 rounded-full font-black text-xs border border-yellow-300 shadow-lg flex items-center space-x-1">
+                        <i class="fa-solid fa-concierge-bell text-yellow-300"></i>
+                        <span class="hidden sm:inline">Serve</span>
+                    </button>
+
+                    <button onclick="confirmExitGame()" class="bg-red-900/60 hover:bg-red-800 text-red-200 border border-red-600/60 p-2 sm:px-3 sm:py-1.5 rounded-full text-xs font-bold transition-all flex items-center space-x-1">
+                        <i class="fa-solid fa-door-open text-red-300"></i>
+                        <span class="hidden sm:inline">Exit</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Top Header Stats & Workflow Guide -->
+            <div class="flex justify-between items-center gap-2">
+                <!-- Branding -->
+                <div class="glass-card rounded-2xl px-3 py-1.5 sm:py-2 flex items-center space-x-2.5 border border-amber-900/40 shadow-xl">
+                    <div class="bg-gradient-to-tr from-amber-600 to-red-600 w-7 h-7 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-white text-sm sm:text-lg shadow-lg font-black">
+                        章
+                    </div>
+                    <div>
+                        <h1 class="text-xs sm:text-base font-black tracking-wide text-amber-400 uppercase font-jp leading-none">Takoyaki 3D</h1>
+                        <p class="text-[9px] sm:text-[10px] text-amber-200/80 font-medium hidden sm:block">Yatai Master Simulator</p>
+                    </div>
+                </div>
+
+                <!-- Workflow Step Guide -->
+                <div class="hidden lg:flex items-center space-x-2 glass-card px-4 py-2 rounded-2xl border border-amber-500/20">
+                    <span class="text-xs font-bold text-amber-400">Steps:</span>
+                    <span id="step-1" class="text-xs font-bold px-2 py-0.5 rounded bg-amber-500 text-black">1. Batter</span>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-amber-500/40"></i>
+                    <span id="step-2" class="text-xs font-bold text-gray-400">2. Fillings</span>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-amber-500/40"></i>
+                    <span id="step-3" class="text-xs font-bold text-gray-400">3. Flip</span>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-amber-500/40"></i>
+                    <span id="step-4" class="text-xs font-bold text-gray-400">4. Plate</span>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-amber-500/40"></i>
+                    <span id="step-5" class="text-xs font-bold text-yellow-400">5. Top & Serve</span>
+                </div>
+
+                <!-- Game Stats & Mode Switcher -->
+                <div class="flex items-center space-x-2">
+                    <div id="coin-counter" class="glass-card rounded-2xl px-3 py-1.5 flex items-center space-x-2 border border-yellow-500/30">
+                        <i class="fa-solid fa-coins text-yellow-400 text-sm"></i>
+                        <span id="score-text" class="text-xs sm:text-base font-black text-yellow-400">¥0</span>
+                    </div>
+
+                    <div id="rush-stats" class="hidden glass-card rounded-2xl px-3 py-1.5 flex items-center space-x-2 border border-red-500/30">
+                        <i class="fa-solid fa-stopwatch text-red-400 text-sm"></i>
+                        <span id="timer-text" class="text-xs sm:text-base font-black text-red-400">90s</span>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-1 flex space-x-1">
+                        <button id="mode-sandbox-btn" onclick="switchGameMode('sandbox')" class="px-2 sm:px-3 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition-all bg-amber-600 text-white shadow-md min-h-[32px]">
+                            <i class="fa-solid fa-mug-hot mr-1"></i> Free
+                        </button>
+                        <button id="mode-rush-btn" onclick="switchGameMode('rush')" class="px-2 sm:px-3 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition-all text-amber-200 hover:bg-amber-900/40 min-h-[32px]">
+                            <i class="fa-solid fa-fire mr-1"></i> Rush
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Order Card (Rush Mode) -->
+        <div id="order-card" class="hidden pointer-events-auto max-w-[260px] sm:max-w-xs glass-card rounded-2xl p-2.5 border-l-4 border-l-amber-500 shadow-2xl my-auto">
+            <div class="flex justify-between items-start mb-1.5">
+                <div class="flex items-center space-x-2">
+                    <span class="text-lg">🍱</span>
+                    <div>
+                        <h3 class="text-xs font-bold text-amber-300">Customer Order</h3>
+                        <p id="order-req-text" class="text-[10px] text-gray-300">Requires 6 Takoyaki Balls + Sauce & Mayo</p>
+                    </div>
+                </div>
+                <span class="text-xs font-extrabold text-amber-400 bg-amber-950/80 px-2 py-0.5 rounded-full border border-amber-500/30">¥600</span>
+            </div>
+            <button onclick="serveOrder()" class="w-full mt-1 bg-gradient-to-r from-red-600 to-amber-600 text-white font-extrabold text-xs py-1.5 rounded-xl border border-yellow-300 shadow-md flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-check-circle"></i>
+                <span>SERVE THIS ORDER</span>
+            </button>
+        </div>
+
+        <!-- Auto Serve Banner Modal -->
+        <div id="auto-serve-prompt" class="hidden pointer-events-auto max-w-sm mx-auto mb-2 glass-card rounded-2xl px-4 py-2 border-2 border-yellow-400 pulse-glowing flex items-center justify-between shadow-2xl">
+            <div class="flex items-center space-x-2.5">
+                <span class="text-xl">😋</span>
+                <div>
+                    <h5 class="text-xs font-black text-yellow-300">Plate Ready To Serve!</h5>
+                    <p class="text-[10px] text-gray-200 font-medium">Takoyaki plated & topped!</p>
+                </div>
+            </div>
+            <button onclick="serveOrder()" class="bg-gradient-to-r from-red-600 to-amber-500 text-white font-black text-xs px-3 py-1.5 rounded-xl border border-yellow-300 shadow-md flex items-center space-x-1">
+                <span>SERVE NOW</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+
+        <!-- Bottom Action Dock & Tool Bar -->
+        <div class="pointer-events-auto w-full max-w-4xl mx-auto flex flex-col gap-2">
+            
+            <!-- Quick Batch Buttons -->
+            <div class="flex justify-center items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                <button onclick="executeGlobalNextStep()" class="quick-action-btn bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-black font-black text-xs px-3 sm:px-4 py-2 rounded-2xl shadow-lg border border-amber-300 flex items-center space-x-1.5 shrink-0 pulse-glowing">
+                    <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                    <span>AUTO COOK NEXT STEP</span>
+                </button>
+
+                <button onclick="batchAction('pour')" class="quick-action-btn bg-amber-950/80 hover:bg-amber-900/80 text-amber-200 border border-amber-700/50 text-[10px] sm:text-xs font-bold px-2.5 py-2 rounded-2xl shrink-0 flex items-center space-x-1">
+                    <i class="fa-solid fa-jar text-amber-400"></i>
+                    <span>Pour All</span>
+                </button>
+
+                <button onclick="batchAction('fillings')" class="quick-action-btn bg-amber-950/80 hover:bg-amber-900/80 text-amber-200 border border-amber-700/50 text-[10px] sm:text-xs font-bold px-2.5 py-2 rounded-2xl shrink-0 flex items-center space-x-1">
+                    <i class="fa-solid fa-fish text-red-400"></i>
+                    <span>Add Mix-ins</span>
+                </button>
+
+                <button onclick="batchAction('flip')" class="quick-action-btn bg-amber-950/80 hover:bg-amber-900/80 text-amber-200 border border-amber-700/50 text-[10px] sm:text-xs font-bold px-2.5 py-2 rounded-2xl shrink-0 flex items-center space-x-1">
+                    <i class="fa-solid fa-rotate text-yellow-400"></i>
+                    <span>Flip All</span>
+                </button>
+
+                <button onclick="batchAction('plate')" class="quick-action-btn bg-amber-950/80 hover:bg-amber-900/80 text-amber-200 border border-amber-700/50 text-[10px] sm:text-xs font-bold px-2.5 py-2 rounded-2xl shrink-0 flex items-center space-x-1">
+                    <i class="fa-solid fa-box-open text-orange-400"></i>
+                    <span>Plate All</span>
+                </button>
+
+                <button onclick="serveOrder()" class="quick-action-btn bg-gradient-to-r from-red-600 to-amber-600 text-white border border-yellow-300 text-[10px] sm:text-xs font-black px-3 py-2 rounded-2xl shrink-0 flex items-center space-x-1 shadow-lg">
+                    <i class="fa-solid fa-bell text-yellow-300"></i>
+                    <span>Serve Plate 🍽️</span>
+                </button>
+            </div>
+
+            <!-- Heat Controls & Tool Selection -->
+            <div class="wood-panel rounded-2xl sm:rounded-3xl p-2 sm:p-3 flex items-center justify-between gap-2">
+                <!-- Heat Control Slider -->
+                <div class="flex items-center space-x-2 bg-black/60 px-2.5 py-1.5 rounded-2xl border border-amber-900/50 shrink-0">
+                    <i class="fa-solid fa-fire text-orange-500 text-sm sm:text-base"></i>
+                    <div class="flex flex-col">
+                        <span class="text-[9px] font-bold text-amber-400 uppercase leading-none">Heat</span>
+                        <span id="heat-label" class="text-[10px] font-extrabold text-white leading-tight">Medium</span>
+                    </div>
+                    <input type="range" min="0" max="3" value="2" oninput="changeHeat(this.value)" class="w-14 sm:w-20 accent-amber-500 cursor-pointer">
+                </div>
+
+                <!-- Main Tool Dock -->
+                <div class="flex items-center space-x-1 sm:space-x-2 overflow-x-auto no-scrollbar w-full justify-end">
+                    <button onclick="selectTool('smart')" id="tool-smart" class="tool-btn active flex-1 min-w-[55px] sm:min-w-[65px] bg-gradient-to-b from-amber-900/60 to-black/80 p-1.5 rounded-xl border border-amber-700/40 flex flex-col items-center justify-center space-y-0.5">
+                        <div class="text-base sm:text-lg text-amber-400"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                        <span class="text-[9px] sm:text-xs font-bold text-amber-300 whitespace-nowrap">Smart</span>
+                    </button>
+
+                    <button onclick="selectTool('batter')" id="tool-batter" class="tool-btn flex-1 min-w-[55px] sm:min-w-[65px] bg-gradient-to-b from-amber-900/60 to-black/80 p-1.5 rounded-xl border border-amber-700/40 flex flex-col items-center justify-center space-y-0.5">
+                        <div class="text-base sm:text-lg text-amber-200"><i class="fa-solid fa-jar"></i></div>
+                        <span class="text-[9px] sm:text-xs font-bold text-amber-300 whitespace-nowrap">Batter</span>
+                    </button>
+
+                    <button onclick="selectTool('tako')" id="tool-tako" class="tool-btn flex-1 min-w-[55px] sm:min-w-[65px] bg-gradient-to-b from-amber-900/60 to-black/80 p-1.5 rounded-xl border border-amber-700/40 flex flex-col items-center justify-center space-y-0.5">
+                        <div class="text-base sm:text-lg text-red-400"><i class="fa-solid fa-fish"></i></div>
+                        <span class="text-[9px] sm:text-xs font-bold text-amber-300 whitespace-nowrap">Tako</span>
+                    </button>
+
+                    <button onclick="selectTool('pick')" id="tool-pick" class="tool-btn flex-1 min-w-[55px] sm:min-w-[65px] bg-gradient-to-b from-amber-900/60 to-black/80 p-1.5 rounded-xl border border-amber-700/40 flex flex-col items-center justify-center space-y-0.5">
+                        <div class="text-base sm:text-lg text-amber-400"><i class="fa-solid fa-arrows-spin"></i></div>
+                        <span class="text-[9px] sm:text-xs font-bold text-amber-300 whitespace-nowrap">Flip Pick</span>
+                    </button>
+
+                    <button onclick="selectTool('plate')" id="tool-plate" class="tool-btn flex-1 min-w-[55px] sm:min-w-[65px] bg-gradient-to-b from-amber-900/60 to-black/80 p-1.5 rounded-xl border border-amber-700/40 flex flex-col items-center justify-center space-y-0.5">
+                        <div class="text-base sm:text-lg text-orange-400"><i class="fa-solid fa-box-open"></i></div>
+                        <span class="text-[9px] sm:text-xs font-bold text-amber-300 whitespace-nowrap">Plate</span>
+                    </button>
+
+                    <div class="h-8 w-[1px] bg-amber-800/40 mx-0.5 shrink-0"></div>
+
+                    <button onclick="selectTool('sauce')" id="tool-sauce" class="tool-btn flex-1 min-w-[50px] sm:min-w-[60px] bg-gradient-to-b from-amber-950/80 to-black/80 p-1.5 rounded-xl border border-amber-800/50 flex flex-col items-center justify-center space-y-0.5">
+                        <div class="text-base sm:text-lg text-amber-900"><i class="fa-solid fa-bottle-droplet"></i></div>
+                        <span class="text-[9px] sm:text-xs font-bold text-amber-400">Sauce</span>
+                    </button>
+
+                    <button onclick="selectTool('mayo')" id="tool-mayo" class="tool-btn flex-1 min-w-[50px] sm:min-w-[60px] bg-gradient-to-b from-amber-950/80 to-black/80 p-1.5 rounded-xl border border-amber-800/50 flex flex-col items-center justify-center space-y-0.5">
+                        <div class="text-base sm:text-lg text-yellow-100"><i class="fa-solid fa-bottle-water"></i></div>
+                        <span class="text-[9px] sm:text-xs font-bold text-amber-400">Mayo</span>
+                    </button>
+
+                    <button onclick="selectTool('toppings')" id="tool-toppings" class="tool-btn flex-1 min-w-[50px] sm:min-w-[60px] bg-gradient-to-b from-amber-950/80 to-black/80 p-1.5 rounded-xl border border-amber-800/50 flex flex-col items-center justify-center space-y-0.5">
+                        <div class="text-base sm:text-lg text-emerald-500"><i class="fa-solid fa-mortar-pestle"></i></div>
+                        <span class="text-[9px] sm:text-xs font-bold text-amber-400">Flakes</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHOP MODAL (🛒) -->
+    <div id="shop-modal" class="hidden fixed inset-0 z-50 pointer-events-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6">
+        <div class="wood-panel w-full max-w-2xl rounded-3xl p-4 sm:p-6 shadow-2xl border-2 border-amber-500/40 flex flex-col max-h-[90vh]">
+            <!-- Shop Header -->
+            <div class="flex justify-between items-center pb-3 border-b border-amber-800/50">
+                <div class="flex items-center space-x-3">
+                    <span class="text-2xl sm:text-3xl">🛒</span>
+                    <div>
+                        <h2 class="text-base sm:text-xl font-black text-amber-400 font-jp uppercase">Yatai Gear Shop</h2>
+                        <p class="text-xs text-amber-200/70">Upgrade your pan, boat plates, and stall equipment!</p>
+                    </div>
+                </div>
+                <button onclick="closeShopModal()" class="text-gray-400 hover:text-white text-xl p-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Shop Tab Bar -->
+            <div class="flex space-x-2 my-3">
+                <button onclick="switchShopTab('pans')" id="tab-pans" class="shop-tab-btn active flex-1 py-1.5 rounded-xl text-xs font-bold border border-amber-500/40 transition-all">Pans</button>
+                <button onclick="switchShopTab('boats')" id="tab-boats" class="shop-tab-btn flex-1 py-1.5 bg-amber-950/60 text-amber-300 hover:bg-amber-900/60 rounded-xl text-xs font-bold border border-amber-500/40 transition-all">Plates</button>
+                <button onclick="switchShopTab('upgrades')" id="tab-upgrades" class="shop-tab-btn flex-1 py-1.5 bg-amber-950/60 text-amber-300 hover:bg-amber-900/60 rounded-xl text-xs font-bold border border-amber-500/40 transition-all">Upgrades</button>
+            </div>
+
+            <!-- Shop Items Grid -->
+            <div id="shop-items-container" class="overflow-y-auto no-scrollbar space-y-3 flex-1 pr-1">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL (⚙️) -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-50 pointer-events-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6">
+        <div class="wood-panel w-full max-w-md rounded-3xl p-5 sm:p-6 shadow-2xl border-2 border-amber-500/40 flex flex-col space-y-5">
+            <!-- Settings Header -->
+            <div class="flex justify-between items-center pb-3 border-b border-amber-800/50">
+                <div class="flex items-center space-x-3">
+                    <span class="text-2xl">⚙️</span>
+                    <div>
+                        <h2 class="text-lg font-black text-amber-400 uppercase font-jp">Audio & Settings</h2>
+                        <p class="text-xs text-amber-200/70">Adjust volume and preferences</p>
+                    </div>
+                </div>
+                <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-white text-xl p-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- BGM Toggle -->
+            <div class="flex justify-between items-center bg-black/50 p-3 rounded-2xl border border-amber-900/40">
+                <div class="flex items-center space-x-3">
+                    <i class="fa-solid fa-music text-amber-400 text-lg"></i>
+                    <div>
+                        <h4 class="text-xs font-bold text-amber-200">Festival Background Music</h4>
+                        <p class="text-[10px] text-gray-400">Yatai synth beat loop</p>
+                    </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="bgm-toggle" checked onchange="toggleBGM(this.checked)" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                </label>
+            </div>
+
+            <!-- Music Volume Slider -->
+            <div class="bg-black/50 p-3 rounded-2xl border border-amber-900/40 space-y-1">
+                <div class="flex justify-between items-center text-xs font-bold text-amber-200">
+                    <span><i class="fa-solid fa-volume-high text-amber-400 mr-2"></i>Music Volume</span>
+                    <span id="music-vol-val">60%</span>
+                </div>
+                <input type="range" id="music-vol-slider" min="0" max="100" value="60" oninput="updateMusicVolume(this.value)" class="w-full accent-amber-500 cursor-pointer">
+            </div>
+
+            <!-- SFX Volume Slider -->
+            <div class="bg-black/50 p-3 rounded-2xl border border-amber-900/40 space-y-1">
+                <div class="flex justify-between items-center text-xs font-bold text-amber-200">
+                    <span><i class="fa-solid fa-bullhorn text-amber-400 mr-2"></i>Sound FX Volume</span>
+                    <span id="sfx-vol-val">80%</span>
+                </div>
+                <input type="range" id="sfx-vol-slider" min="0" max="100" value="80" oninput="updateSFXVolume(this.value)" class="w-full accent-amber-500 cursor-pointer">
+            </div>
+
+            <!-- Exit Button Inside Settings -->
+            <div class="pt-2 flex justify-between gap-3">
+                <button onclick="confirmExitGame()" class="flex-1 bg-red-900/80 hover:bg-red-800 text-white font-bold text-xs py-3 rounded-2xl border border-red-500 flex items-center justify-center space-x-2 shadow-lg">
+                    <i class="fa-solid fa-door-open"></i>
+                    <span>Exit to Game Hub</span>
+                </button>
+                <button onclick="closeSettingsModal()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-black font-extrabold text-xs py-3 rounded-2xl border border-yellow-300 shadow-lg">
+                    <span>Save & Close</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game Configuration & State Variables
+        const CONFIG = {
+            gridRows: 3,
+            gridCols: 4,
+            moldRadius: 0.85,
+            heatLevels: [0, 0.5, 1.0, 1.8]
+        };
+
+        let currentTool = 'smart';
+        let currentGameMode = 'sandbox';
+        let currentHeatLevel = 2;
+        let score = 0;
+        let timerSeconds = 90;
+        let gameTimerInterval = null;
+
+        // Audio & Settings State
+        let bgmEnabled = true;
+        let musicVolume = 0.6;
+        let sfxVolume = 0.8;
+        let audioCtx = null;
+        let sizzleGainNode = null;
+        let bgmInterval = null;
+
+        // Shop Inventory State
+        let currentPanSkin = 'cast_iron';
+        let currentPlateSkin = 'bamboo';
+        let turboBurnerUnlocked = false;
+
+        const SHOP_ITEMS = {
+            pans: [
+                { id: 'cast_iron', name: 'Cast Iron Pan', price: 0, desc: 'Classic traditional yatai cast iron.', color: 0x1c1c1f, metal: 0.85, rough: 0.35, owned: true },
+                { id: 'gold_pan', name: 'Golden Pan', price: 800, desc: '+10% Cooking Heat speed.', color: 0xeab308, metal: 0.95, rough: 0.15, owned: false },
+                { id: 'ceramic_pan', name: 'Non-Stick Ceramic', price: 1500, desc: 'Sleek white heat distribution.', color: 0xf8fafc, metal: 0.2, rough: 0.1, owned: false },
+                { id: 'cyber_pan', name: 'Neon Cyber Pan', price: 3000, desc: 'Futuristic glowing neon edges!', color: 0x06b6d4, metal: 0.9, rough: 0.1, owned: false }
+            ],
+            boats: [
+                { id: 'bamboo', name: 'Bamboo Boat', price: 0, desc: 'Standard funazara wooden boat.', color: 0xc8965d, owned: true },
+                { id: 'sakura', name: 'Sakura Blossom', price: 500, desc: 'Elegant pink Japanese cherry boat.', color: 0xf472b6, owned: false },
+                { id: 'dragon', name: 'Golden Dragon', price: 1200, desc: 'Imperial dragon motif boat.', color: 0xf59e0b, owned: false },
+                { id: 'cyber_boat', name: 'Cyber Neon Boat', price: 2500, desc: 'Glowing sci-fi tray.', color: 0x3b82f6, owned: false }
+            ],
+            upgrades: [
+                { id: 'turbo', name: 'Turbo Burners', price: 1000, desc: 'Increases cooking speed by 25%.', owned: false },
+                { id: 'double_tip', name: 'Tip Multiplier', price: 2000, desc: 'Earn 50% more coins per served order.', owned: false }
+            ]
+        };
+
+        let currentShopTab = 'pans';
+
+        // Three.js Core Variables
+        let scene, camera, renderer, controls;
+        let panMesh, plateMesh, hoverRingMesh;
+        let molds = [];
+        let steamParticles = [];
+        let bonitoFlakes = [];
+        let plateToppings = [];
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+
+        // Audio Engine Implementation (Procedural BGM Synth)
+        function initAudio() {
+            if (audioCtx) return;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+
+                // Sizzle sound generator
+                const bufferSize = audioCtx.sampleRate * 2;
+                const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const output = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+
+                const sizzleSource = audioCtx.createBufferSource();
+                sizzleSource.buffer = noiseBuffer;
+                sizzleSource.loop = true;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 3200;
+
+                sizzleGainNode = audioCtx.createGain();
+                sizzleGainNode.gain.value = 0.03 * sfxVolume;
+
+                sizzleSource.connect(filter);
+                filter.connect(sizzleGainNode);
+                sizzleGainNode.connect(audioCtx.destination);
+                sizzleSource.start();
+
+                startProceduralBGM();
+            } catch(e) {}
+        }
+
+        function startProceduralBGM() {
+            if (bgmInterval) clearInterval(bgmInterval);
+            const notes = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25]; // C Pentatonic Scale
+            let step = 0;
+
+            bgmInterval = setInterval(() => {
+                if (!bgmEnabled || !audioCtx || musicVolume <= 0) return;
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+
+                const note = notes[step % notes.length];
+                osc.frequency.setValueAtTime(note, audioCtx.currentTime);
+
+                gain.gain.setValueAtTime(0.05 * musicVolume, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.35);
+                step++;
+            }, 300);
+        }
+
+        function playSound(type) {
+            if (!audioCtx) initAudio();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            if (!audioCtx || sfxVolume <= 0) return;
+
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'pour') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(380, now + 0.2);
+                gain.gain.setValueAtTime(0.18 * sfxVolume, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'drop') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(450, now);
+                osc.frequency.exponentialRampToValueAtTime(140, now + 0.15);
+                gain.gain.setValueAtTime(0.25 * sfxVolume, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'flip') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(700, now);
+                osc.frequency.linearRampToValueAtTime(320, now + 0.18);
+                gain.gain.setValueAtTime(0.14 * sfxVolume, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+                osc.start(now);
+                osc.stop(now + 0.18);
+            } else if (type === 'squirt') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(550, now);
+                osc.frequency.linearRampToValueAtTime(220, now + 0.12);
+                gain.gain.setValueAtTime(0.18 * sfxVolume, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } else if (type === 'serve') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.3 * sfxVolume, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            }
+        }
+
+        // Three.js Scene Setup
+        function initThreeScene() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0c0a09);
+            scene.fog = new THREE.FogExp2(0x0c0a09, 0.035);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            updateCameraPosition();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.05;
+            controls.minDistance = 3.5;
+            controls.maxDistance = 14;
+
+            // Lighting Setup
+            const ambientLight = new THREE.AmbientLight(0xfff3e0, 0.7);
+            scene.add(ambientLight);
+
+            const mainLight = new THREE.DirectionalLight(0xffe2b8, 1.8);
+            mainLight.position.set(5, 10, 5);
+            mainLight.castShadow = true;
+            scene.add(mainLight);
+
+            const heatGlowLight = new THREE.PointLight(0xff3300, 2.2, 7);
+            heatGlowLight.position.set(-1.4, -0.6, 0);
+            scene.add(heatGlowLight);
+
+            createCountertopEnvironment();
+            createTakoyakiPan();
+            createFunazaraPlate();
+            createHoverRingIndicator();
+            initSteamParticles();
+
+            window.addEventListener('resize', onWindowResize);
+            
+            const domEl = renderer.domElement;
+            domEl.addEventListener('pointerdown', onPointerDown);
+            domEl.addEventListener('pointermove', onPointerMove);
+        }
+
+        function updateCameraPosition() {
+            if (window.innerWidth < 768) {
+                camera.position.set(0, 9.5, 8.5);
+            } else {
+                camera.position.set(0, 7.5, 7.5);
+            }
+        }
+
+        function createCountertopEnvironment() {
+            const counterGeo = new THREE.BoxGeometry(20, 1, 14);
+            const counterMat = new THREE.MeshStandardMaterial({ color: 0x1f140e, roughness: 0.85 });
+            const counter = new THREE.Mesh(counterGeo, counterMat);
+            counter.position.set(0, -0.8, 0);
+            counter.receiveShadow = true;
+            scene.add(counter);
+        }
+
+        function createTakoyakiPan() {
+            if (panMesh) scene.remove(panMesh);
+
+            const skin = SHOP_ITEMS.pans.find(p => p.id === currentPanSkin);
+            const panGeo = new THREE.BoxGeometry(6.0, 0.55, 4.6);
+            const panMat = new THREE.MeshStandardMaterial({
+                color: skin.color,
+                metalness: skin.metal,
+                roughness: skin.rough
+            });
+
+            panMesh = new THREE.Mesh(panGeo, panMat);
+            panMesh.position.set(-1.4, 0, 0);
+            panMesh.castShadow = true;
+            panMesh.receiveShadow = true;
+            scene.add(panMesh);
+
+            if (molds.length === 0) {
+                const startX = -1.8;
+                const startZ = -1.4;
+
+                for (let r = 0; r < CONFIG.gridRows; r++) {
+                    for (let c = 0; c < CONFIG.gridCols; c++) {
+                        const worldX = panMesh.position.x + startX + c * 1.2;
+                        const worldZ = panMesh.position.z + startZ + r * 1.4;
+
+                        const holeGeo = new THREE.SphereGeometry(CONFIG.moldRadius, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+                        const holeMat = new THREE.MeshStandardMaterial({ color: 0x121214, roughness: 0.4, side: THREE.BackSide });
+                        const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+                        holeMesh.position.set(worldX, 0.255, worldZ);
+                        holeMesh.rotation.x = Math.PI;
+                        scene.add(holeMesh);
+
+                        const ballGeo = new THREE.SphereGeometry(CONFIG.moldRadius * 0.96, 24, 24);
+                        const cookCanvas = document.createElement('canvas');
+                        cookCanvas.width = 128;
+                        cookCanvas.height = 128;
+                        const cookCtx = cookCanvas.getContext('2d');
+                        renderBatterCanvas(cookCtx, 0);
+
+                        const cookTexture = new THREE.CanvasTexture(cookCanvas);
+                        const ballMat = new THREE.MeshStandardMaterial({ map: cookTexture, roughness: 0.6 });
+                        const ballMesh = new THREE.Mesh(ballGeo, ballMat);
+                        ballMesh.position.set(worldX, 0, worldZ);
+                        ballMesh.scale.set(1, 0.01, 1);
+                        ballMesh.visible = false;
+                        ballMesh.castShadow = true;
+                        scene.add(ballMesh);
+
+                        molds.push({
+                            id: r * CONFIG.gridCols + c,
+                            x: worldX,
+                            z: worldZ,
+                            mesh: ballMesh,
+                            cookCtx: cookCtx,
+                            cookTexture: cookTexture,
+                            batterLevel: 0,
+                            hasTako: false,
+                            hasFillings: false,
+                            flipState: 0,
+                            cookProgress: 0,
+                            takoMesh: null,
+                            fillingsGroup: null,
+                            plated: false
+                        });
+                    }
+                }
+            }
+        }
+
+        function createFunazaraPlate() {
+            if (plateMesh) scene.remove(plateMesh);
+
+            const skin = SHOP_ITEMS.boats.find(b => b.id === currentPlateSkin);
+            const shape = new THREE.Shape();
+            shape.moveTo(-1.1, -2.4);
+            shape.quadraticCurveTo(-1.6, 0, -1.1, 2.4);
+            shape.lineTo(1.1, 2.4);
+            shape.quadraticCurveTo(1.6, 0, 1.1, -2.4);
+            shape.closePath();
+
+            const boatGeo = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: 0.2, bevelEnabled: true, bevelThickness: 0.08 });
+            boatGeo.rotateX(Math.PI / 2);
+
+            const boatMat = new THREE.MeshStandardMaterial({ color: skin.color, roughness: 0.7 });
+            plateMesh = new THREE.Mesh(boatGeo, boatMat);
+            plateMesh.position.set(3.4, -0.1, 0);
+            plateMesh.rotation.y = Math.PI / 12;
+            plateMesh.castShadow = true;
+            plateMesh.receiveShadow = true;
+            scene.add(plateMesh);
+        }
+
+        function createHoverRingIndicator() {
+            const ringGeo = new THREE.RingGeometry(CONFIG.moldRadius * 0.85, CONFIG.moldRadius * 1.05, 32);
+            ringGeo.rotateX(-Math.PI / 2);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+            hoverRingMesh = new THREE.Mesh(ringGeo, ringMat);
+            hoverRingMesh.position.set(0, 0.28, 0);
+            hoverRingMesh.visible = false;
+            scene.add(hoverRingMesh);
+        }
+
+        function renderBatterCanvas(ctx, cookProgress) {
+            ctx.clearRect(0, 0, 128, 128);
+            let baseColor, spotColor;
+
+            if (cookProgress < 40) {
+                baseColor = '#f5e3ad';
+                spotColor = '#e3c276';
+            } else if (cookProgress <= 110) {
+                const factor = (cookProgress - 40) / 70;
+                baseColor = lerpColor('#f5e3ad', '#c47123', factor);
+                spotColor = lerpColor('#e3c276', '#7a3907', factor);
+            } else {
+                const factor = Math.min(1, (cookProgress - 110) / 70);
+                baseColor = lerpColor('#c47123', '#241107', factor);
+                spotColor = lerpColor('#7a3907', '#000000', factor);
+            }
+
+            ctx.fillStyle = baseColor;
+            ctx.fillRect(0, 0, 128, 128);
+
+            ctx.fillStyle = spotColor;
+            for (let i = 0; i < 18; i++) {
+                const rx = (Math.sin(i * 99 + cookProgress) * 0.5 + 0.5) * 128;
+                const ry = (Math.cos(i * 33 + cookProgress) * 0.5 + 0.5) * 128;
+                ctx.beginPath();
+                ctx.arc(rx, ry, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function lerpColor(a, b, amount) {
+            const ah = parseInt(a.replace('#', ''), 16), ar = ah >> 16, ag = (ah >> 8) & 0xff, ab = ah & 0xff,
+                  bh = parseInt(b.replace('#', ''), 16), br = bh >> 16, bg = (bh >> 8) & 0xff, bb = bh & 0xff,
+                  rr = Math.round(ar + amount * (br - ar)),
+                  rg = Math.round(ag + amount * (bg - ag)),
+                  rb = Math.round(ab + amount * (bb - ab));
+            return '#' + ((1 << 24) + (rr << 16) + (rg << 8) + rb).toString(16).slice(1);
+        }
+
+        function initSteamParticles() {
+            const particleCount = 70;
+            const pGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 4.5 - 1.4;
+                positions[i * 3 + 1] = Math.random() * 2;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 3.5;
+            }
+
+            pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const pMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.18, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending });
+            const particles = new THREE.Points(pGeo, pMat);
+            scene.add(particles);
+
+            steamParticles = { mesh: particles, positions: positions, count: particleCount };
+        }
+
+        // Shop System Modal Functions
+        function openShopModal() {
+            renderShopItems();
+            document.getElementById('shop-modal').classList.remove('hidden');
+            playSound('squirt');
+        }
+
+        function closeShopModal() {
+            document.getElementById('shop-modal').classList.add('hidden');
+        }
+
+        function switchShopTab(tab) {
+            currentShopTab = tab;
+            document.querySelectorAll('.shop-tab-btn').forEach(btn => {
+                btn.className = "shop-tab-btn flex-1 py-1.5 bg-amber-950/60 text-amber-300 hover:bg-amber-900/60 rounded-xl text-xs font-bold border border-amber-500/40 transition-all";
+            });
+            document.getElementById(`tab-${tab}`).className = "shop-tab-btn active flex-1 py-1.5 rounded-xl text-xs font-bold border border-amber-500/40 transition-all";
+            renderShopItems();
+        }
+
+        function renderShopItems() {
+            const container = document.getElementById('shop-items-container');
+            container.innerHTML = '';
+
+            const items = SHOP_ITEMS[currentShopTab];
+            items.forEach(item => {
+                const itemCard = document.createElement('div');
+                itemCard.className = "bg-black/60 p-3 rounded-2xl border border-amber-900/50 flex justify-between items-center";
+
+                let btnHtml = '';
+                if (item.owned) {
+                    const isEquipped = (currentShopTab === 'pans' && currentPanSkin === item.id) || (currentShopTab === 'boats' && currentPlateSkin === item.id);
+                    if (isEquipped) {
+                        btnHtml = `<span class="bg-amber-500 text-black text-xs font-black px-3 py-1.5 rounded-xl">EQUIPPED</span>`;
+                    } else {
+                        btnHtml = `<button onclick="equipShopItem('${item.id}')" class="bg-amber-900/80 hover:bg-amber-800 text-amber-200 text-xs font-bold px-3 py-1.5 rounded-xl border border-amber-600">EQUIP</button>`;
+                    }
+                } else {
+                    btnHtml = `<button onclick="buyShopItem('${item.id}')" class="bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-xs font-black px-3 py-1.5 rounded-xl shadow-md">BUY ¥${item.price}</button>`;
+                }
+
+                itemCard.innerHTML = `
+                    <div>
+                        <h4 class="text-xs sm:text-sm font-bold text-amber-300">${item.name}</h4>
+                        <p class="text-[10px] text-gray-300">${item.desc}</p>
+                    </div>
+                    <div>${btnHtml}</div>
+                `;
+                container.appendChild(itemCard);
+            });
+        }
+
+        function buyShopItem(id) {
+            const item = SHOP_ITEMS[currentShopTab].find(i => i.id === id);
+            if (score >= item.price) {
+                score -= item.price;
+                item.owned = true;
+                document.getElementById('score-text').innerText = `¥${score}`;
+                equipShopItem(id);
+                playSound('serve');
+            } else {
+                alert("Not enough coins! Keep serving takoyaki orders.");
+            }
+        }
+
+        function equipShopItem(id) {
+            if (currentShopTab === 'pans') {
+                currentPanSkin = id;
+                createTakoyakiPan();
+            } else if (currentShopTab === 'boats') {
+                currentPlateSkin = id;
+                createFunazaraPlate();
+            }
+            renderShopItems();
+            playSound('squirt');
+        }
+
+        // Settings Modal Functions
+        function openSettingsModal() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+            playSound('squirt');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function toggleBGM(enabled) {
+            bgmEnabled = enabled;
+            if (enabled) startProceduralBGM();
+        }
+
+        function updateMusicVolume(val) {
+            musicVolume = val / 100;
+            document.getElementById('music-vol-val').innerText = `${val}%`;
+        }
+
+        function updateSFXVolume(val) {
+            sfxVolume = val / 100;
+            document.getElementById('sfx-vol-val').innerText = `${val}%`;
+            if (sizzleGainNode) sizzleGainNode.gain.value = 0.03 * sfxVolume;
+        }
+
+        function confirmExitGame() {
+            if (confirm("Exit Takoyaki Simulator and return to Game Hub?")) {
+                window.location.href = "game_hub.html";
+            }
+        }
+
+        // Core Gameplay Actions
+        function changeHeat(val) {
+            currentHeatLevel = parseInt(val);
+            const labels = ["OFF", "LOW", "MEDIUM", "HIGH 🔥"];
+            document.getElementById('heat-label').innerText = labels[currentHeatLevel];
+            playSound('squirt');
+        }
+
+        function selectTool(toolName) {
+            currentTool = toolName;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById(`tool-${toolName}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            if (toolName === 'smart') {
+                document.getElementById('banner-title').innerText = "Smart Assist Enabled";
+                document.getElementById('banner-desc').innerText = "Tap any mold to pour, add octopus, flip, or plate automatically!";
+            } else {
+                document.getElementById('banner-title').innerText = `Tool Selected: ${toolName.toUpperCase()}`;
+                document.getElementById('banner-desc').innerText = `Tap molds or plate to use ${toolName}!`;
+            }
+            playSound('squirt');
+        }
+
+        function switchGameMode(mode) {
+            currentGameMode = mode;
+            const sandboxBtn = document.getElementById('mode-sandbox-btn');
+            const rushBtn = document.getElementById('mode-rush-btn');
+            const rushStats = document.getElementById('rush-stats');
+            const orderCard = document.getElementById('order-card');
+
+            if (mode === 'sandbox') {
+                sandboxBtn.className = "px-2 sm:px-3 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition-all bg-amber-600 text-white shadow-md min-h-[32px]";
+                rushBtn.className = "px-2 sm:px-3 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition-all text-amber-200 hover:bg-amber-900/40 min-h-[32px]";
+                rushStats.classList.add('hidden');
+                orderCard.classList.add('hidden');
+                if (gameTimerInterval) clearInterval(gameTimerInterval);
+            } else {
+                rushBtn.className = "px-2 sm:px-3 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition-all bg-amber-600 text-white shadow-md min-h-[32px]";
+                sandboxBtn.className = "px-2 sm:px-3 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition-all text-amber-200 hover:bg-amber-900/40 min-h-[32px]";
+                rushStats.classList.remove('hidden');
+                orderCard.classList.remove('hidden');
+                startRushTimer();
+            }
+        }
+
+        function startRushTimer() {
+            timerSeconds = 90;
+            score = 0;
+            document.getElementById('score-text').innerText = "¥0";
+            document.getElementById('timer-text').innerText = timerSeconds + "s";
+
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            gameTimerInterval = setInterval(() => {
+                timerSeconds--;
+                document.getElementById('timer-text').innerText = timerSeconds + "s";
+                if (timerSeconds <= 0) {
+                    clearInterval(gameTimerInterval);
+                    alert(`⏰ Rush Time's Up! Total Coins Earned: ¥${score}`);
+                    switchGameMode('sandbox');
+                }
+            }, 1000);
+        }
+
+        function checkPlateStateAndPrompt() {
+            const platedMolds = molds.filter(m => m.plated);
+            const prompt = document.getElementById('auto-serve-prompt');
+            if (platedMolds.length > 0) prompt.classList.remove('hidden');
+            else prompt.classList.add('hidden');
+        }
+
+        function serveOrder() {
+            const platedMolds = molds.filter(m => m.plated);
+
+            if (platedMolds.length === 0) {
+                document.getElementById('banner-title').innerText = "Plate is Empty!";
+                document.getElementById('banner-desc').innerText = "Plate cooked takoyaki balls before serving!";
+                playSound('squirt');
+                return;
+            }
+
+            playSound('serve');
+            const coinsEarned = platedMolds.length * 100 + (plateToppings.length > 0 ? 200 : 0);
+            score += coinsEarned;
+            document.getElementById('score-text').innerText = `¥${score}`;
+
+            platedMolds.forEach(m => resetMold(m));
+            plateToppings.forEach(topMesh => scene.remove(topMesh));
+            plateToppings = [];
+
+            document.getElementById('banner-title').innerText = `Order Served! +¥${coinsEarned} Earned 🎉`;
+            document.getElementById('banner-desc').innerText = "Plate is ready for a fresh warm batch!";
+
+            checkPlateStateAndPrompt();
+        }
+
+        function resetMold(mold) {
+            mold.batterLevel = 0;
+            mold.hasTako = false;
+            mold.hasFillings = false;
+            mold.flipState = 0;
+            mold.cookProgress = 0;
+            mold.plated = false;
+
+            if (mold.takoMesh) { scene.remove(mold.takoMesh); mold.takoMesh = null; }
+            if (mold.fillingsGroup) { scene.remove(mold.fillingsGroup); mold.fillingsGroup = null; }
+
+            renderBatterCanvas(mold.cookCtx, 0);
+            mold.cookTexture.needsUpdate = true;
+
+            mold.mesh.visible = false;
+            mold.mesh.scale.set(1, 0.01, 1);
+            mold.mesh.rotation.set(0, 0, 0);
+
+            const startX = -1.8;
+            const startZ = -1.4;
+            const r = Math.floor(mold.id / CONFIG.gridCols);
+            const c = mold.id % CONFIG.gridCols;
+            mold.mesh.position.set(panMesh.position.x + startX + c * 1.2, 0, panMesh.position.z + startZ + r * 1.4);
+        }
+
+        function executeGlobalNextStep() {
+            playSound('serve');
+            const emptyMolds = molds.filter(m => m.batterLevel === 0 && !m.plated);
+            if (emptyMolds.length > 0) {
+                emptyMolds.forEach(m => applyBatterToMold(m));
+                return;
+            }
+
+            const unmixedMolds = molds.filter(m => m.batterLevel > 0 && (!m.hasTako || !m.hasFillings) && !m.plated);
+            if (unmixedMolds.length > 0) {
+                unmixedMolds.forEach(m => {
+                    applyTakoToMold(m);
+                    applyFillingsToMold(m);
+                });
+                return;
+            }
+
+            const unflipMolds = molds.filter(m => m.batterLevel > 0 && m.flipState < 2 && !m.plated);
+            if (unflipMolds.length > 0) {
+                unflipMolds.forEach(m => applyFlipToMold(m));
+                return;
+            }
+
+            const readyToPlate = molds.filter(m => m.flipState === 2 && !m.plated);
+            if (readyToPlate.length > 0) {
+                readyToPlate.forEach(m => transferToPlate(m));
+                return;
+            }
+
+            autoTopPlate();
+        }
+
+        function batchAction(action) {
+            playSound('serve');
+            if (action === 'pour') molds.filter(m => m.batterLevel === 0 && !m.plated).forEach(m => applyBatterToMold(m));
+            else if (action === 'fillings') molds.filter(m => m.batterLevel > 0 && !m.plated).forEach(m => { applyTakoToMold(m); applyFillingsToMold(m); });
+            else if (action === 'flip') molds.filter(m => m.batterLevel > 0 && m.flipState < 2 && !m.plated).forEach(m => applyFlipToMold(m));
+            else if (action === 'plate') molds.filter(m => m.flipState === 2 && !m.plated).forEach(m => transferToPlate(m));
+        }
+
+        function autoTopPlate() {
+            const center = new THREE.Vector3(plateMesh.position.x, plateMesh.position.y + 0.3, plateMesh.position.z);
+            createSauceDrizzle(center, 0x3b1a08, 0.08);
+            createSauceDrizzle(center, 0xfffbeb, 0.06);
+            createGarnishSprinkles(center);
+            checkPlateStateAndPrompt();
+        }
+
+        function handleMoldInteraction(mold) {
+            if (currentTool === 'smart') {
+                if (mold.batterLevel === 0) applyBatterToMold(mold);
+                else if (!mold.hasTako) { applyTakoToMold(mold); applyFillingsToMold(mold); }
+                else if (mold.flipState < 2) applyFlipToMold(mold);
+                else if (mold.flipState === 2 && !mold.plated) transferToPlate(mold);
+            } else {
+                if (currentTool === 'batter') applyBatterToMold(mold);
+                else if (currentTool === 'tako') applyTakoToMold(mold);
+                else if (currentTool === 'pick') applyFlipToMold(mold);
+                else if (currentTool === 'plate') transferToPlate(mold);
+            }
+        }
+
+        function applyBatterToMold(mold) {
+            if (mold.batterLevel > 0 || mold.plated) return;
+            mold.batterLevel = 1.0;
+            mold.mesh.visible = true;
+            gsap.to(mold.mesh.scale, { x: 1, y: 0.5, z: 1, duration: 0.35 });
+            gsap.to(mold.mesh.position, { y: -CONFIG.moldRadius * 0.3, duration: 0.35 });
+            playSound('pour');
+        }
+
+        function applyTakoToMold(mold) {
+            if (mold.batterLevel === 0 || mold.hasTako || mold.plated) return;
+            mold.hasTako = true;
+
+            const takoGroup = new THREE.Group();
+            const takoGeo = new THREE.DodecahedronGeometry(0.28);
+            const takoMat = new THREE.MeshStandardMaterial({ color: 0x991b1b });
+            const takoMesh = new THREE.Mesh(takoGeo, takoMat);
+            takoGroup.add(takoMesh);
+            takoGroup.position.set(mold.x, 1.0, mold.z);
+
+            scene.add(takoGroup);
+            mold.takoMesh = takoGroup;
+
+            gsap.to(takoGroup.position, { y: 0.05, duration: 0.3, ease: "bounce.out" });
+            playSound('drop');
+        }
+
+        function applyFillingsToMold(mold) {
+            if (mold.batterLevel === 0 || mold.hasFillings || mold.plated) return;
+            mold.hasFillings = true;
+
+            const fillingsGroup = new THREE.Group();
+            for (let i = 0; i < 5; i++) {
+                const green = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.05), new THREE.MeshStandardMaterial({ color: 0x16a34a }));
+                green.position.set((Math.random() - 0.5) * 0.5, 0.15, (Math.random() - 0.5) * 0.5);
+                fillingsGroup.add(green);
+            }
+            fillingsGroup.position.set(mold.x, 0.7, mold.z);
+            scene.add(fillingsGroup);
+            mold.fillingsGroup = fillingsGroup;
+
+            gsap.to(fillingsGroup.position, { y: 0.05, duration: 0.25 });
+        }
+
+        function applyFlipToMold(mold) {
+            if (mold.batterLevel === 0 || mold.plated) return;
+
+            if (mold.flipState === 0) {
+                mold.flipState = 1;
+                gsap.to(mold.mesh.scale, { x: 1, y: 0.85, z: 1, duration: 0.3 });
+                gsap.to(mold.mesh.rotation, { x: Math.PI / 2, duration: 0.35 });
+                if (mold.takoMesh) gsap.to(mold.takoMesh.position, { y: -0.1, duration: 0.3 });
+                playSound('flip');
+            } else if (mold.flipState === 1) {
+                mold.flipState = 2;
+                gsap.to(mold.mesh.scale, { x: 1, y: 1, z: 1, duration: 0.35 });
+                gsap.to(mold.mesh.position, { y: CONFIG.moldRadius * 0.2, duration: 0.35 });
+                gsap.to(mold.mesh.rotation, { x: Math.PI, duration: 0.4 });
+                if (mold.takoMesh) mold.takoMesh.visible = false;
+                if (mold.fillingsGroup) mold.fillingsGroup.visible = false;
+                playSound('flip');
+            }
+        }
+
+        function transferToPlate(mold) {
+            const platedBalls = molds.filter(m => m.plated).length;
+            if (platedBalls >= 8 || mold.plated) return;
+
+            mold.plated = true;
+            const row = Math.floor(platedBalls / 2);
+            const col = platedBalls % 2;
+            const targetX = plateMesh.position.x + (col === 0 ? -0.45 : 0.45);
+            const targetZ = plateMesh.position.z + (row - 1.5) * 1.0;
+            const targetY = plateMesh.position.y + 0.38;
+
+            gsap.to(mold.mesh.position, {
+                x: targetX,
+                y: targetY + 1.1,
+                z: targetZ,
+                duration: 0.3,
+                onComplete: () => {
+                    gsap.to(mold.mesh.position, { y: targetY, duration: 0.25, ease: "bounce.out" });
+                    checkPlateStateAndPrompt();
+                }
+            });
+            playSound('drop');
+        }
+
+        function handlePlateInteraction(point) {
+            if (currentTool === 'sauce' || currentTool === 'smart') {
+                createSauceDrizzle(point, 0x3b1a08, 0.08);
+                playSound('squirt');
+            } else if (currentTool === 'mayo') {
+                createSauceDrizzle(point, 0xfffbeb, 0.06);
+                playSound('squirt');
+            } else if (currentTool === 'toppings') {
+                createGarnishSprinkles(point);
+                playSound('drop');
+            }
+            checkPlateStateAndPrompt();
+        }
+
+        function createSauceDrizzle(centerPoint, colorHex, thickness) {
+            const curve = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(centerPoint.x - 0.35, centerPoint.y + 0.35, centerPoint.z - 0.25),
+                new THREE.Vector3(centerPoint.x - 0.1, centerPoint.y + 0.37, centerPoint.z + 0.1),
+                new THREE.Vector3(centerPoint.x + 0.2, centerPoint.y + 0.35, centerPoint.z - 0.15),
+                new THREE.Vector3(centerPoint.x + 0.35, centerPoint.y + 0.35, centerPoint.z + 0.25)
+            ]);
+
+            const tubeGeo = new THREE.TubeGeometry(curve, 16, thickness, 6, false);
+            const tubeMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.2 });
+            const sauceMesh = new THREE.Mesh(tubeGeo, tubeMat);
+            scene.add(sauceMesh);
+            plateToppings.push(sauceMesh);
+        }
+
+        function createGarnishSprinkles(centerPoint) {
+            for (let i = 0; i < 12; i++) {
+                const flake = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.05), new THREE.MeshBasicMaterial({ color: 0x15803d, side: THREE.DoubleSide }));
+                flake.position.set(centerPoint.x + (Math.random() - 0.5) * 0.8, centerPoint.y + 0.38, centerPoint.z + (Math.random() - 0.5) * 0.8);
+                flake.rotation.set(Math.PI / 2, 0, Math.random() * Math.PI);
+                scene.add(flake);
+                plateToppings.push(flake);
+            }
+
+            for (let i = 0; i < 5; i++) {
+                const bonito = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.11), new THREE.MeshStandardMaterial({ color: 0xd97706, side: THREE.DoubleSide }));
+                bonito.position.set(centerPoint.x + (Math.random() - 0.5) * 0.7, centerPoint.y + 0.4, centerPoint.z + (Math.random() - 0.5) * 0.7);
+                bonito.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+                scene.add(bonito);
+
+                bonitoFlakes.push({ mesh: bonito, phase: Math.random() * Math.PI * 2 });
+                plateToppings.push(bonito);
+            }
+        }
+
+        function updateRaycaster(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+        }
+
+        function updateFloatingServeBadgePosition() {
+            const platedCount = molds.filter(m => m.plated).length;
+            const badgeEl = document.getElementById('floating-serve-badge');
+
+            if (platedCount === 0 || !plateMesh) {
+                badgeEl.classList.add('hidden');
+                return;
+            }
+
+            badgeEl.classList.remove('hidden');
+            const platePos = new THREE.Vector3(plateMesh.position.x, plateMesh.position.y + 1.2, plateMesh.position.z);
+            platePos.project(camera);
+
+            const x = (platePos.x * .5 + .5) * window.innerWidth;
+            const y = (-(platePos.y * .5) + .5) * window.innerHeight;
+
+            badgeEl.style.left = `${x}px`;
+            badgeEl.style.top = `${y}px`;
+        }
+
+        function onPointerMove(event) {
+            updateRaycaster(event);
+
+            let hoveredMold = null;
+            for (let mold of molds) {
+                const moldPos = new THREE.Vector3(mold.x, 0.1, mold.z);
+                const intersects = raycaster.intersectObject(mold.mesh);
+                const ray = raycaster.ray;
+                if (intersects.length > 0 || ray.distanceToPoint(moldPos) < CONFIG.moldRadius * 1.1) {
+                    hoveredMold = mold;
+                    break;
+                }
+            }
+
+            if (hoveredMold) {
+                hoverRingMesh.position.set(hoveredMold.x, 0.28, hoveredMold.z);
+                hoverRingMesh.visible = true;
+            } else {
+                hoverRingMesh.visible = false;
+            }
+        }
+
+        function onPointerDown(event) {
+            if (event.target.closest('#shop-modal') || event.target.closest('#settings-modal')) return;
+
+            updateRaycaster(event);
+
+            for (let mold of molds) {
+                const moldPos = new THREE.Vector3(mold.x, 0.1, mold.z);
+                const intersects = raycaster.intersectObject(mold.mesh);
+                const ray = raycaster.ray;
+                if (intersects.length > 0 || ray.distanceToPoint(moldPos) < CONFIG.moldRadius * 1.1) {
+                    handleMoldInteraction(mold);
+                    break;
+                }
+            }
+
+            const plateIntersects = raycaster.intersectObject(plateMesh, true);
+            if (plateIntersects.length > 0) {
+                handlePlateInteraction(plateIntersects[0].point);
+            }
+        }
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            const heatFactor = CONFIG.heatLevels[currentHeatLevel];
+
+            molds.forEach(mold => {
+                if (mold.batterLevel > 0 && heatFactor > 0 && !mold.plated) {
+                    if (mold.cookProgress < 120) {
+                        mold.cookProgress += 0.08 * heatFactor;
+                    }
+
+                    if (Math.floor(mold.cookProgress) % 3 === 0 && mold.cookProgress <= 120) {
+                        renderBatterCanvas(mold.cookCtx, mold.cookProgress);
+                        mold.cookTexture.needsUpdate = true;
+                    }
+                }
+            });
+
+            if (steamParticles.mesh) {
+                const positions = steamParticles.mesh.geometry.attributes.position.array;
+                for (let i = 0; i < steamParticles.count; i++) {
+                    positions[i * 3 + 1] += 0.012 * (heatFactor + 0.2);
+                    if (positions[i * 3 + 1] > 3.2) {
+                        positions[i * 3 + 1] = 0.2;
+                        positions[i * 3] = (Math.random() - 0.5) * 4.5 - 1.4;
+                        positions[i * 3 + 2] = (Math.random() - 0.5) * 3.5;
+                    }
+                }
+                steamParticles.mesh.geometry.attributes.position.needsUpdate = true;
+            }
+
+            const t = time * 0.005;
+            bonitoFlakes.forEach(flake => {
+                flake.mesh.rotation.z = Math.sin(t + flake.phase) * 0.06;
+            });
+
+            updateFloatingServeBadgePosition();
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            updateCameraPosition();
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.onload = function() {
+            initThreeScene();
+            animate(0);
+        };
+    </script>
+</body>
+</html>
